@@ -1,0 +1,51 @@
+{
+  "packageVersion": 1,
+  "themeId": "sandrone-marionette",
+  "version": "0.3.0",
+  "skinApiVersion": 1,
+  "minClientVersion": "1.5.21",
+  "platforms": [
+    "windows"
+  ],
+  "capabilities": [
+    "background",
+    "tokens",
+    "safe-css"
+  ],
+  "publisher": {
+    "id": "local-workshop",
+    "displayName": "Sandrone Workshop"
+  },
+  "license": "LicenseRef-User-Supplied-Artwork",
+  "provenance": {
+    "aiGenerated": true,
+    "summary": "AI-assisted code with user-supplied third-party art. The code license grants no rights to the art."
+  },
+  "createdAt": "2026-10-24T00:00:00+08:00",
+  "files": [
+    {
+      "path": "theme.json",
+      "bytes": 716,
+      "sha256": "33175585ccc4a2ec36a5f3a12eaf8fdd12d2544c38e35fb91012de665468b3d2",
+      "mediaType": "application/json"
+    },
+    {
+      "path": "theme.css",
+      "bytes": 968,
+      "sha256": "7501a8497cb49f65f91d856750024d19c76d32a73aa46d2505ab5c7956399714",
+      "mediaType": "text/css"
+    },
+    {
+      "path": "background.png",
+      "bytes": 1999638,
+      "sha256": "851e80a8272c8ab6968070206cef44fb6aa161f19cbcc0157296bf208d1f7dcd",
+      "mediaType": "image/png"
+    },
+    {
+      "path": "LICENSE.txt",
+      "bytes": 1710,
+      "sha256": "cb100a4f1b8cb4785c4b7dde0a7d8c9ea478952223312217ea197b5ec7e20302",
+      "mediaType": "text/plain"
+    }
+  ]
+}

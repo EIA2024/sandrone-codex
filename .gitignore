@@ -1,0 +1,17 @@
+profile/
+state/
+logs/
+evidence/
+backups/
+machine.json
+.codex/
+.env*
+*.pem
+*.key
+*.pfx
+*.exe
+*.dll
+*.zip
+integrity.json
+dist/
+__pycache__/

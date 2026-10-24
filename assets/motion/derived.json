@@ -1,0 +1,37 @@
+{
+  "file": "sandrone-loop-1080p.mp4",
+  "source": "sandrone.webm",
+  "sourceSha256": "2875f375cb750925d9c307e2208096ca648dc0632225b898de41892b2ff49ae1",
+  "sha256": "539af561ef48548369bc8acf98bdb654e36b0beb8739a2e52e71b6a5d9804f18",
+  "bytes": 9290473,
+  "seconds": 9,
+  "width": 1920,
+  "height": 1080,
+  "videoCodec": "H.264 High, yuv420p, CRF 16",
+  "audioCodec": null,
+  "defaultMuted": true,
+  "loop": true,
+  "role": "Native same-window opening; stops and releases media on dismissal",
+  "loopInspection": {
+    "firstLastFrameMeanAbsoluteRgbDifference": 1.30686,
+    "scaleForComparison": "480x270",
+    "note": "Near-matching endpoints; visual continuity, not bit-identical frames"
+  },
+  "posterFile": "sandrone-first-frame.jpg",
+  "posterSha256": "49a248d7f791e83d55359e0c418ab3f8e181ee9902c9a567178b18b922b88f45",
+  "posterBytes": 101399,
+  "posterDescription": "Decoded first frame of the shipped opening MP4; exact composition before video playback",
+  "trace": {
+    "file": "sandrone-trace-1080p.mp4",
+    "sha256": "039615bf2af549ba23514af80db3e21bad3b2fb3602f158cd1a21d22942677ca",
+    "bytes": 1632469,
+    "frames": 104,
+    "seconds": 3.466666666666667,
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "content": "source-environment-only",
+    "characterRender": "svg-vector",
+    "sourceSha256": "2875f375cb750925d9c307e2208096ca648dc0632225b898de41892b2ff49ae1"
+  }
+}
