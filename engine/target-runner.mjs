@@ -2,7 +2,7 @@
 import {installNativeUi,setStartupPhase} from './renderer.mjs';
 export const transient = error => ['CDP_UNAVAILABLE','CDP_CLOSED','CDP_CONTEXT','CDP_TIMEOUT','RENDERER_NOT_READY'].includes(error?.code);
 export const call = (fn,...values)=>`(${fn.toString()})(${values.map(v=>JSON.stringify(v)).join(',')})`;
-export async function applyTargets({pages,connect,resources,verify,opening,force=false}){
+export async function applyTargets({pages,connect,resources,verify,prepareOpening,opening,force=false}){
  const results=await Promise.allSettled(pages.map(async page=>{
   let session;
   try{
@@ -13,13 +13,18 @@ export async function applyTargets({pages,connect,resources,verify,opening,force
     return {ready:false,visible:false,idle:Boolean(idle)};
    }
    const {loaded,css}=await resources();
-   if(opening)await opening(session);
+   // Prepare media alongside theme setup; visible playback starts only after
+   // stylesheet installation and verification no longer compete for a frame.
+   const preparing=prepareOpening?prepareOpening(session):Promise.resolve();
+   void preparing.catch(()=>{});
    const skinPresent=!force&&await session.evaluate(`Boolean(document.documentElement.getAttribute('data-dream-skin')==='active'&&window.__CODEX_DREAM_SKIN_STATE__?.revision===${JSON.stringify(loaded.revision)})`);
    if(!skinPresent){await session.evaluate(call(setStartupPhase,'applying'));await session.evaluate(loaded.payload);}
    const nativePresent=!force&&await session.evaluate(`window.__SANDRONE_NATIVE_UI__?.version==='0.5.3'&&window.__SANDRONE_NATIVE_UI__.css===${JSON.stringify(css)}&&document.adoptedStyleSheets.includes(window.__SANDRONE_NATIVE_UI__.sheet)`);
    if(!nativePresent)await session.evaluate(call(installNativeUi,css));
    const ready=verify?Boolean((await verify(session,page.id,loaded.theme.id,loaded.revision))?.pass):true;
    if(verify||!skinPresent)await session.evaluate(call(setStartupPhase,ready?'ready':'waiting'));
+   await preparing;
+   if(opening)await opening(session);
    return {visible:true,ready};
   }finally{await session?.close();}
  }));

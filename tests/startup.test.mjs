@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {applyTargets,transient} from '../engine/target-runner.mjs';
-import {protocolFailure} from '../engine/cdp.mjs';
+import {protocolFailure,Session} from '../engine/cdp.mjs';
 import {inspectTargetWindow} from '../vendor/dream-skin/windows/scripts/injector.mjs';
 const unsupported=await inspectTargetWindow({send:async()=>{throw protocolFailure({code:-32000,message:'Browser window not found'});}},'test-target');
 assert.equal(unsupported.unsupported,true,'preserve protocol codes for upstream native-window fallback');
@@ -29,6 +29,23 @@ await applyTargets({pages:[{id:'active'}],connect:async()=>({close(){},evaluate:
  return true;
 }}),resources,verify:async()=>{order.push('validated');return {pass:true};}});
 assert.deepEqual(order,['applying','payload','validated','ready'],'stage feedback follows actual apply and verification');
+// Preparation must overlap theme work, but visibility waits for both tasks.
+const startupOrder=[];let finishPreparation;
+await applyTargets({pages:[{id:'active'}],resources,
+ prepareOpening:()=>{startupOrder.push('prepare');return new Promise(resolve=>{finishPreparation=()=>{startupOrder.push('prepared');resolve();};});},
+ connect:async()=>({close(){},evaluate:async expression=>{
+  if(expression.startsWith('Boolean(document.visibility'))return true;
+  if(expression.includes('__CODEX_DREAM_SKIN_STATE__'))return false;
+  if(expression==='fixed-theme')startupOrder.push('payload');
+  if(expression.endsWith('("ready")')){startupOrder.push('ready');finishPreparation();}
+  return true;
+ }}),verify:async()=>{startupOrder.push('verified');return {pass:true};},
+ opening:async()=>startupOrder.push('visible')});
+assert.deepEqual(startupOrder,['prepare','payload','verified','ready','prepared','visible']);
+const session=new Session('ws://127.0.0.1:19337/devtools/page/test');
+const deadlines=[];session.send=async(method,params,deadline)=>{deadlines.push(deadline);assert.equal(params.awaitPromise,true);return {result:{value:'ready'}};};
+assert.equal(await session.evaluate('Promise.resolve("ready")',{timeoutMs:15000}),'ready');
+await session.evaluate('true');assert.deepEqual(deadlines,[15000,3000],'media timeout does not change ordinary command deadline');
 for(const [installedCss,expectedInstalls]of [['old-css',1],['fixed-css',0]]){
  let installs=0;const sheet={};
  const context={window:{__SANDRONE_NATIVE_UI__:{version:'0.5.3',css:installedCss,sheet}},document:{adoptedStyleSheets:[sheet]}};

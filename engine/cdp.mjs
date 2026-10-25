@@ -31,11 +31,11 @@ export class Session{
   this.socket.onmessage=e=>{try{const v=JSON.parse(e.data);if(v.method){for(const listener of this.events)listener(v.method,v.params);return;}const job=this.waiting.get(v.id);if(!job)return;this.waiting.delete(v.id);clearTimeout(job.timer);v.error?job.reject(protocolFailure(v.error)):job.resolve(v.result);}catch{}};
   this.socket.onclose=()=>{this.closed=true;for(const job of this.waiting.values()){clearTimeout(job.timer);job.reject(failure('Debugger session closed','CDP_CLOSED'));}this.waiting.clear();};return this;
  }
- async send(method,params={}){
+ async send(method,params={},timeoutMs=3000){
   if(this.closed)throw failure('Debugger session is closed','CDP_CLOSED');const id=++this.seq;
-  return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.waiting.delete(id);reject(failure('Debugger command timed out','CDP_TIMEOUT'));},3000);this.waiting.set(id,{resolve,reject,timer});try{this.socket.send(JSON.stringify({id,method,params}));}catch{clearTimeout(timer);this.waiting.delete(id);reject(failure('Debugger session is closed','CDP_CLOSED'));}});
+  return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.waiting.delete(id);reject(failure('Debugger command timed out','CDP_TIMEOUT'));},timeoutMs);this.waiting.set(id,{resolve,reject,timer});try{this.socket.send(JSON.stringify({id,method,params}));}catch{clearTimeout(timer);this.waiting.delete(id);reject(failure('Debugger session is closed','CDP_CLOSED'));}});
  }
- async evaluate(expression){const r=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error('Fixed renderer component failed: '+(r.exceptionDetails.exception?.description?.split('\n')[0]||r.exceptionDetails.text));return r.result?.value;}
+ async evaluate(expression,{timeoutMs=3000}={}){const r=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},timeoutMs);if(r.exceptionDetails)throw new Error('Fixed renderer component failed: '+(r.exceptionDetails.exception?.description?.split('\n')[0]||r.exceptionDetails.text));return r.result?.value;}
  onEvent(listener){this.events.add(listener);return ()=>this.events.delete(listener);}
  close(){
   if(this.closingPromise)return this.closingPromise;

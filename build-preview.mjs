@@ -1,13 +1,16 @@
 import fs from 'node:fs/promises';
 import {openingAssets} from './engine/assets.mjs';
-import {showOpening,installNativeUi} from './engine/renderer.mjs';
+import {prepareOpening,showOpening,installNativeUi} from './engine/renderer.mjs';
 const assets=await openingAssets();const css=await fs.readFile(new URL('./engine/native-ui.css',import.meta.url),'utf8');
 const invoke=(fn,...values)=>`(${fn.toString()})(${values.map(v=>JSON.stringify(v)).join(',')})`;
 const html=`<!doctype html><html lang="zh-CN" data-dream-skin="active"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>桑多涅 · 同窗开屏与可读性预览</title><style>
 body{margin:0;font:15px/1.8 "Segoe UI","Microsoft YaHei",sans-serif;background:#0c121b;color:#f3eee3}aside{position:fixed;width:220px;inset:0 auto 0 0;background:#111923;padding:32px;box-sizing:border-box;border-right:1px solid #726143}main{margin-left:220px;padding:32px 5%;max-width:1100px}.brand{color:#d3b77e;letter-spacing:.12em}.muted{color:#aeb9c5;font-size:13px}.card{margin:28px 0;padding:26px;border:1px solid #344153;border-radius:14px}button{cursor:pointer;border:1px solid #6e624a;border-radius:8px;padding:9px 16px;margin:5px;font:inherit}pre{padding:18px;border-radius:8px;font:13px/1.7 Consolas,monospace;color:#bdd7e7;white-space:pre-wrap}.composer{padding:20px;border:1px solid #9e8256;border-radius:12px;margin-top:30px}a{color:#b1ddeb}nav{margin-top:30px}nav p{padding:8px 0}.avatar{width:38px}.user{background:var(--color-background-user-message);color:var(--color-text-user-message);padding:14px 18px;border-radius:12px;margin-left:30%}.bg-token-foreground{background:#eee;color:#eee}#result{min-height:28px;color:#d3b77e}header{display:flex;align-items:center;justify-content:space-between}h1{font-size:22px;font-weight:500}.note{color:#aeb9c5;font-size:12px}
 </style><aside data-ds-part="sidebar"><img class="avatar" src="${assets.avatar}" alt=""><div class="brand">SANDRONE<br>MARIONETTE</div><nav><p>新建聊天</p><p>项目</p><p>人偶工坊</p></nav><div class="note">离线视觉验收页面<br>不会连接 Codex 或账号</div></aside><main data-ds-part="main"><header><h1>人偶工坊 · 可读性预览</h1><button id="replay">重播开屏</button></header><p class="muted">开屏在当前页面内淡出；以下为演示文字。</p><div class="user">请展示新主题的阅读效果。</div><article class="card" data-ds-part="message"><div class="brand">WORKSHOP READY</div><p>文字区使用实色深蓝底，避免角色背景穿过长段落。正文和次级文字分别保持足够对比度。</p><pre>const workshop = {<br>  client: "Official Codex",<br>  theme: "Sandrone",<br>  opening: "same-window"<br>};</pre><a href="#verification">来源与验证记录</a><p><button id="demo">悬停和按下效果</button><button class="bg-token-foreground" id="primary">主要操作</button><button disabled>禁用状态</button></p><div id="result" aria-live="polite"></div></article><div class="composer" data-ds-part="composer"><div>与 Codex 一起工作</div><p><button>＋ 附件</button><button>模型选择</button><button>工具</button><button class="bg-token-foreground">发送</button></p></div><p class="note" id="verification">离线验证页面，不代表真实客户端功能验收。</p></main><script>
 ${invoke(installNativeUi,css)};
-const replay=()=>${invoke(showOpening,assets,{preview:true})};
+const assets=${JSON.stringify(assets)};
+const prepare=${prepareOpening.toString()};
+const show=${showOpening.toString()};
+const replay=async()=>{await prepare(assets);return show(null,{preview:true});};
 document.getElementById('replay').onclick=replay;document.getElementById('demo').onclick=()=>document.getElementById('result').textContent='按钮按下后仍在同一页面。';document.getElementById('primary').onclick=()=>document.getElementById('result').textContent='金色主按钮使用深色文字。';
 replay();
 </script></html>`;

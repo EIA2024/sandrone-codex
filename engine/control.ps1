@@ -99,7 +99,7 @@ function EnsureWatcher($node,$state){
  $sessionScript=Join-Path $projectRoot 'engine\session.mjs'
  # The watcher caches the validated theme payload as well as fixed UI code.
  # Refresh it on theme edits so it cannot reapply yesterday's text/style.
- $revisionFiles=@('engine/renderer.mjs','engine/session.mjs','engine/cdp.mjs','engine/target-runner.mjs','engine/watch-signal.mjs','engine/native-ui.css','themes/sandrone/theme.json','themes/sandrone/theme.css','themes/sandrone/manifest.json','themes/sandrone/background.png')
+ $revisionFiles=@('engine/renderer.mjs','engine/opening-client.mjs','engine/session.mjs','engine/cdp.mjs','engine/target-runner.mjs','engine/watch-signal.mjs','engine/native-ui.css','themes/sandrone/theme.json','themes/sandrone/theme.css','themes/sandrone/manifest.json','themes/sandrone/background.png')
  $revision=($revisionFiles|ForEach-Object {(Get-FileHash -LiteralPath (Join-Path $projectRoot $_) -Algorithm SHA256).Hash}) -join ''
  if($state.watcherPid){
   try{
