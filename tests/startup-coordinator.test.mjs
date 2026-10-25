@@ -15,17 +15,31 @@ function fixture() {
   const wc = { id: 1, mainFrame: frame, isDestroyed: () => false, send: (channel, value) => messages.push(value), executeJavaScript: async () => result };
   const electron = { ipcMain, app: { isReady: () => true }, session: { defaultSession: { registerPreloadScript: value => registrations.push(value) } } };
   const coordinator = createStartup(electron, { themeRoot: path.resolve(import.meta.dirname, '..'), preferences: () => preferences, log: (...values) => logs.push(values), disable: async () => { preferences.enabled = false; coordinator.update(preferences); }, retry() {} });
+  const replies = [];
   const event = { sender: wc, senderFrame: frame };
+  // Electron sends the synchronous reply on assignment, not after listeners
+  // return. A second assignment cannot replace what the renderer received.
+  Object.defineProperty(event, 'returnValue', { set: value => replies.push(value) });
   ipcMain.emit('sandrone:startup-bootstrap', event);
-  const action = (action, values = {}, token = event.returnValue.token) => ipcMain.emit('sandrone:startup-action', event, { action, token, ...values });
-  return { coordinator, event, action, messages, logs, registrations, wc, ipcMain, setResult: value => result = value };
+  const config = replies[0];
+  const action = (action, values = {}, token = config.token) => ipcMain.emit('sandrone:startup-action', event, { action, token, ...values });
+  return { coordinator, event, config, replies, action, messages, logs, registrations, wc, ipcMain, setResult: value => result = value };
 }
+
+test('the first and only synchronous bootstrap reply initializes the startup player', () => {
+  const f = fixture();
+  assert.ok(f.config?.token, 'renderer must receive a usable configuration as its first reply');
+  assert.equal(f.config.show, true);
+  assert.equal(f.replies.length, 1, 'a synchronous request must have one reply');
+  f.coordinator.replay({ webContents: f.wc });
+  assert.deepEqual(f.messages.at(-1), { kind: 'replay', token: f.config.token });
+});
 
 test('registers an early preload and grants entry only after verified lifecycle and fresh probes', async () => {
   const f = fixture();
-  assert.equal(f.registrations.length, 1); assert.equal(f.event.returnValue.show, true);
+  assert.equal(f.registrations.length, 1); assert.equal(f.config.show, true);
   assert.equal(f.logs.some(([event]) => event.endsWith('-error')), false);
-  assert.match(f.event.returnValue.media.intro, /^app:\/\/fs\/@fs\//);
+  assert.match(f.config.media.intro, /^app:\/\/fs\/@fs\//);
   f.action('enter', { reason: 'auto' }); await pause();
   assert.equal(f.messages.some(message => message.kind === 'enter'), false);
   f.action('host', { type: 'codex-app-server-initialized', hostId: 'local' });

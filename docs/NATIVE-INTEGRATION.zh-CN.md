@@ -2,7 +2,7 @@
 
 这是一项可选的 Windows MSIX modification package 集成。它在普通官方 Codex 启动时加载桑多涅主题，沿用官方 profile，不要求另开 CDP 调试端口。原有便携启动器继续保留。本方案不是 OpenAI 插件目录中的标准插件，也不是官方支持的主题接口。
 
-原生启动画面现采用独立早期 preload、离线合成视频和真实阶段进度，详见 [启动进度说明](STARTUP-READINESS.zh-CN.md)。0.3.0.0 已构建，尚未完成普通启动安装验收；下文标明 0.2.0.0 的结果属于历史版本。
+原生启动画面现采用独立早期 preload、离线合成视频和真实阶段进度，详见 [启动进度说明](STARTUP-READINESS.zh-CN.md)。0.3.0.0 已安装但启动握手缺陷导致开屏失效；0.3.1.0 修复该问题，仍待普通入口安装验收。下文标明 0.2.0.0 的结果属于历史版本。
 
 ## 使用与退出
 
@@ -21,7 +21,7 @@ Windows 部署使用 `RemovePackageAsync` 的 `DeferRemovalWhenPackagesAreInUse`
 | 系统 | Windows 11 x64 |
 | 官方主包 | `OpenAI.Codex_26.1021.3705.0_x64__2p2nqsd0c76g0` |
 | 官方来源 | 有效 Store 签名 MSIX，发布者及四个关键文件 SHA256 匹配 `native-integration/compatibility.json` |
-| 本地附加包 | `Local.Sandrone.CodexNativeTheme`，`0.3.0.0` |
+| 本地附加包 | `Local.Sandrone.CodexNativeTheme`，`0.3.1.0` |
 | 构建依赖 | x64 GCC、Windows SDK MakeAppx、PowerShell；不需要 npm 或另带 Node 运行时 |
 | 部署 | 本机开发测试用 unsigned MSIX；可能需要管理员权限，不自动提权 |
 
@@ -59,7 +59,7 @@ MSIX 将 `windows-updater.node` 映射到转接模块，同时提供原模块的
 需要手动恢复时，先正常退出 Codex，再从构建输出目录执行：
 
 ```powershell
-.\uninstall.ps1 -Action Remove -StateDirectory '<Codex userData>\sandrone-theme' -ExpectedPackageFullName 'Local.Sandrone.CodexNativeTheme_0.3.0.0_x64__vt89pjxv8jer8'
+.\uninstall.ps1 -Action Remove -StateDirectory '<Codex userData>\sandrone-theme' -ExpectedPackageFullName 'Local.Sandrone.CodexNativeTheme_0.3.1.0_x64__vt89pjxv8jer8'
 ```
 
 `Status` 查询状态，`Cancel` 取消尚未提交给 Windows 的请求。`Schedule` 安排退出后卸载；`Run` 只供 worker 使用。各操作只接受固定包名前缀、x64 架构及此本地开发发布者的精确完整包名。卸载请求 24 小时未执行会过期并报告错误，进程中止也不会伪报成功。

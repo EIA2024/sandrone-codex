@@ -34,8 +34,12 @@ try {
   const integration = startIntegration({ app, ipcMain, session: { defaultSession: { registerPreloadScript: script => registrations.push(script) } }, BrowserWindow: { getAllWindows: () => [win] }, dialog: {} }, temporary, { addonPackageFullName: 'fixture' });
   const { manager } = integration;
   const event = { sender: win.webContents, senderFrame: win.webContents.mainFrame };
+  const replies = [];
+  Object.defineProperty(event, 'returnValue', { set: value => replies.push(value) });
   ipcMain.emit('sandrone:startup-bootstrap', event);
-  const config = event.returnValue;
+  const config = replies[0];
+  assert.ok(config?.token, 'first synchronous IPC reply must initialize the player');
+  assert.equal(replies.length, 1);
   assert.equal(registrations.length, 1);
   await page.exposeFunction('startupSend', message => ipcMain.emit('sandrone:startup-action', event, message));
   await page.evaluate(`window.controller=(${installStartupScreen.toString()})(${JSON.stringify(config)},(action,detail={})=>window.startupSend({action,...detail,token:${JSON.stringify(config.token)}}));`);

@@ -68,8 +68,9 @@ function createStartup(electron, options) {
     } finally { document.busy = false; }
   }
   ipcMain.on('sandrone:startup-bootstrap', event => {
-    event.returnValue = null;
-    if (!allowed(event)) return;
+    // Setting returnValue sends the synchronous IPC reply immediately. Do not
+    // send a placeholder before the configuration: the renderer keeps it.
+    if (!allowed(event)) { event.returnValue = null; return; }
     const preferences = options.preferences();
     const document = { wc: event.sender, token: crypto.randomUUID(), hosts: new Map(), expected: null, started: Date.now(), busy: false, candidate: false };
     documents.set(event.sender.id, document);
