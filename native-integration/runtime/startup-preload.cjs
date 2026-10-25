@@ -35,7 +35,7 @@ function installStartupScreen(config, send) {
     shadow.querySelector('.hint').textContent = state.ready
       ? preferences.autoEnterOnReady ? introDone ? '正在进入工作区' : '工作区已就绪 · 片头播放后自动进入' : '双击进入 · 或连续按两次空格进入'
       : '正在准备工作区，完成后可以进入';
-    shadow.querySelector('.recovery').hidden = !state.recovery;
+    shadow.querySelector('.recovery').hidden = !state.login;
     shadow.querySelector('[data-action="login"]').hidden = !state.login;
     if (preferences.autoEnterOnReady && state.ready && introDone) requestEntry('auto');
   }
@@ -77,7 +77,7 @@ function installStartupScreen(config, send) {
       .recovery{margin-top:10px}button{color:#eee9dc;background:#263343;border:1px solid #766246;padding:7px 12px;margin:4px;cursor:pointer}
       .screen.fading{opacity:0;transition:opacity .25s ease}.screen.fading *{pointer-events:none}
       [hidden]{display:none!important}
-    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button><button data-action="retry">重试检查</button><button data-action="native">切回原生界面</button></div></div></div>`;
+    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button></div></div></div>`;
     shadow.querySelector('img').src = introDone ? config.media.still || config.media.poster : config.media.poster;
     const screen = shadow.querySelector('.screen');
     screen.addEventListener('dblclick', event => {
