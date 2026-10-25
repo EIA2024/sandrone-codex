@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "codec": "H.264 yuv420p",
+  "audio": false,
+  "intro": {
+    "kind": "intro",
+    "file": "sandrone-startup-intro.mp4",
+    "seconds": 5.2,
+    "frames": 156,
+    "sha256": "b07152ac3e34c3bdd5cce43d307698b02ee7d267ea9d01de91a66ca23628aa02",
+    "bytes": 2789970
+  },
+  "idle": {
+    "kind": "idle",
+    "file": "sandrone-startup-idle.mp4",
+    "seconds": 9,
+    "frames": 270,
+    "sha256": "12ba5bfdd5db070a8e3ca3e747665776758633be5b5b9e15dc5233a6dbe3b2ed",
+    "bytes": 5529777
+  },
+  "poster": {
+    "file": "sandrone-startup-poster.jpg",
+    "sha256": "aee743d29b9fd0fb2ba5ce8e5d52c5d784ec8db8b33795353964fdb12c7928e8",
+    "bytes": 77363
+  },
+  "source": {
+    "rendererSha256": "f1893e13155da0c439bb5f1030137382cc73174a1f01dbe2d93622c8457b0147",
+    "motionManifestSha256": "90f31d9212fe075873fa9cad917be996ba04a32bcaa9d9ab7f4ce5d29711b1dd"
+  },
+  "notes": "Offline composition of existing opening; progress and recovery controls are rendered live. Runtime performs no export or transcode.",
+  "still": {
+    "file": "sandrone-startup-still.jpg",
+    "sha256": "dcd6f588ea35a0aae0ef0272ba9f2c44add803c11c26d0f6c5e014d30a524fe6",
+    "bytes": 213915
+  }
+}

@@ -20,6 +20,13 @@ if (Test-Path -LiteralPath $output) { throw 'OutputDirectory must not already ex
 foreach ($file in @('runtime\main.cjs', 'runtime\controls.cjs', 'uninstall.ps1', 'install.ps1')) {
     if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot $file))) { throw ('Missing native integration source: ' + $file) }
 }
+$startup = Get-Content -LiteralPath (Join-Path $repoRoot 'assets\motion\startup.json') -Raw | ConvertFrom-Json
+if ($startup.schema -ne 1 -or $startup.width -ne 1920 -or $startup.height -ne 1080 -or $startup.fps -ne 30 -or $startup.audio -ne $false) { throw 'Unsupported startup media manifest.' }
+foreach ($asset in @($startup.intro, $startup.idle, $startup.poster, $startup.still)) {
+    if ($asset.file -notmatch '^sandrone-startup-(intro|idle|poster|still)\.(mp4|jpg)$') { throw 'Invalid fixed startup media path.' }
+    $assetPath = Join-Path $repoRoot ('assets\motion\' + $asset.file)
+    if ((Get-Item -LiteralPath $assetPath).Length -ne $asset.bytes -or (Get-SandroneHash $assetPath) -cne $asset.sha256) { throw ('Startup media digest mismatch: ' + $asset.file) }
+}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead($source)
 try {

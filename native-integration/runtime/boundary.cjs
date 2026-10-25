@@ -8,7 +8,7 @@ function isShellUrl(value) {
   } catch { return false; }
 }
 
-const actions = new Set(['enable', 'disable', 'replay', 'opening', 'uninstall', 'cancel-uninstall', 'status']);
+const actions = new Set(['enable', 'disable', 'replay', 'opening', 'auto-enter', 'uninstall', 'cancel-uninstall', 'status']);
 function readAction(details, mainFrame, prefix) {
   // Electron supplies the originating frame. Fail closed on older event forms
   // rather than accepting commands from embedded third-party pages.

@@ -28,7 +28,7 @@ try {
     if ((Entry-Hash ($native + 'windows-updater.node')) -cne $bundle.proxySha256) { throw 'Native bridge bytes changed.' }
     $installation = Read-Entry ($native + 'sandrone/installation.json') | ConvertFrom-Json
     if ($installation.addonPackageFullName -cne $bundle.addonPackageFullName -or $installation.targetPackage -cne $bundle.targetPackage) { throw 'Runtime metadata differs from package identity.' }
-    foreach ($relative in @('runtime/main.cjs', 'runtime/controls.cjs', 'management/uninstall.ps1', 'theme/engine/renderer.mjs', 'theme/vendor/dream-skin/windows/scripts/injector.mjs', 'theme/themes/sandrone/manifest.json', 'theme/assets/motion/sandrone-loop-1080p.mp4')) {
+    foreach ($relative in @('runtime/main.cjs', 'runtime/controls.cjs', 'runtime/startup.cjs', 'runtime/startup-preload.cjs', 'runtime/startup-readiness.cjs', 'management/uninstall.ps1', 'theme/engine/renderer.mjs', 'theme/vendor/dream-skin/windows/scripts/injector.mjs', 'theme/themes/sandrone/manifest.json', 'theme/assets/motion/sandrone-loop-1080p.mp4', 'theme/assets/motion/startup.json', 'theme/assets/motion/sandrone-startup-intro.mp4', 'theme/assets/motion/sandrone-startup-idle.mp4', 'theme/assets/motion/sandrone-startup-poster.jpg', 'theme/assets/motion/sandrone-startup-still.jpg')) {
         if (!$archive.GetEntry($native + 'sandrone/' + $relative)) { throw ('Bundle is not self-contained: ' + $relative) }
     }
     foreach ($entry in $archive.Entries) {

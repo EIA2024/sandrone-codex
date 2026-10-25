@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const defaults = Object.freeze({ schema: 1, enabled: true, openingOnLaunch: true });
+const defaults = Object.freeze({ schema: 1, enabled: true, openingOnLaunch: true, autoEnterOnReady: true });
 
 function readPreferences(directory) {
   try {
@@ -13,6 +13,7 @@ function readPreferences(directory) {
       schema: 1,
       enabled: typeof value.enabled === 'boolean' ? value.enabled : defaults.enabled,
       openingOnLaunch: typeof value.openingOnLaunch === 'boolean' ? value.openingOnLaunch : defaults.openingOnLaunch,
+      autoEnterOnReady: typeof value.autoEnterOnReady === 'boolean' ? value.autoEnterOnReady : defaults.autoEnterOnReady,
     };
   } catch { return { ...defaults }; }
 }
@@ -23,6 +24,7 @@ function writePreferences(directory, value) {
   const temporary = file + '.' + process.pid + '.tmp';
   fs.writeFileSync(temporary, JSON.stringify({
     schema: 1, enabled: value.enabled === true, openingOnLaunch: value.openingOnLaunch === true,
+    autoEnterOnReady: value.autoEnterOnReady !== false,
   }, null, 2) + '\n');
   fs.renameSync(temporary, file);
 }
