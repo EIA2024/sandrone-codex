@@ -57,7 +57,7 @@ async function encode(ffmpeg, output, frames, recipe, capture, progress) {
 
 export async function renderStartupClips(root, output, progress = message => process.stderr.write(message + '\n')) {
   const recipe = JSON.parse(await fs.readFile(path.join(root, 'tools/startup-recipe.json'), 'utf8'));
-  if (recipe.schema !== 1 || recipe.width !== 1920 || recipe.height !== 1080 || recipe.fps !== 30 || !['intro', 'idle'].every(key => Number.isSafeInteger(recipe[key]?.frames) && recipe[key].frames > 0 && recipe[key].frames <= 1800)) throw new Error('Unsupported startup rendering recipe');
+  if (recipe.schema !== 1 || recipe.width !== 1920 || recipe.height !== 1080 || ![30, 60].includes(recipe.fps) || !['intro', 'idle'].every(key => Number.isSafeInteger(recipe[key]?.frames) && recipe[key].frames > 0 && recipe[key].frames <= 1800)) throw new Error('Unsupported startup rendering recipe');
   const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
   const ffprobe = process.env.FFPROBE_PATH || 'ffprobe';
   const encoderVersion = command(ffmpeg, ['-version']).split(/\r?\n/)[0];

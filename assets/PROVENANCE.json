@@ -73,15 +73,15 @@
     },
     {
       "file": "assets/motion/startup.json",
-      "sha256": "c1e714a0c1a5dad58596094e2333c4705378c7f43f93426af0ec97fb5875a85e"
+      "sha256": "514f88f287ff2f66eb7ef6c0db65b9f8ac50ab9ab9fc9965489bf588e9c64561"
     },
     {
       "file": "assets/motion/sandrone-startup-intro.mp4",
-      "sha256": "42c9fe9d5b5a3cfae607dc94ab0314ed2efdf210529d49650c896fb560c6b524"
+      "sha256": "f94076ea5c3d318ba4dc607fcb744f221bfc1a7822e7e14c1e8d994d7d0f7baa"
     },
     {
       "file": "assets/motion/sandrone-startup-idle.mp4",
-      "sha256": "c3a4aec0f885b414a28173a81b8c55ad001559a6770db9cf5d21923955a13dfb"
+      "sha256": "fea6b1151b04736ca5d26ed5feae86bb397a81d6b5e72c9b1e694ad3aba02668"
     },
     {
       "file": "assets/motion/sandrone-startup-poster.jpg",

@@ -38,7 +38,7 @@ export async function readStartupInputs(root) {
 
 export async function validateStartupMedia(directory, inputs) {
   const manifest = JSON.parse(await fs.readFile(path.join(directory, 'startup.json'), 'utf8'));
-  if (manifest.schema !== 1 || manifest.width !== 1920 || manifest.height !== 1080 || manifest.fps !== 30 || manifest.audio !== false) throw new Error('Unsupported startup media format');
+  if (manifest.schema !== 1 || manifest.width !== 1920 || manifest.height !== 1080 || ![30, 60].includes(manifest.fps) || manifest.fps !== inputs?.recipe?.fps || manifest.audio !== false) throw new Error('Unsupported startup media format');
   if (!inputs || manifest.source?.fingerprint !== inputs.fingerprint || JSON.stringify(manifest.source.files) !== JSON.stringify(inputs.files)) throw new Error('Startup sources changed; regenerate the opening');
   if (JSON.stringify(manifest.recipe) !== JSON.stringify(inputs.recipe)) throw new Error('Startup timeline differs from the current recipe');
   for (const [kind, name] of Object.entries(mediaFiles)) {

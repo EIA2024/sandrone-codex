@@ -2,21 +2,21 @@
   "schema": 1,
   "width": 1920,
   "height": 1080,
-  "fps": 30,
+  "fps": 60,
   "codec": "H.264 yuv420p",
   "audio": false,
   "recipe": {
     "schema": 1,
     "width": 1920,
     "height": 1080,
-    "fps": 30,
+    "fps": 60,
     "intro": {
       "start": 0,
-      "frames": 156
+      "frames": 312
     },
     "idle": {
       "start": 5.2,
-      "frames": 270
+      "frames": 540
     },
     "colorStart": 2.1,
     "colorDuration": 1.15,
@@ -37,16 +37,16 @@
   "intro": {
     "file": "sandrone-startup-intro.mp4",
     "seconds": 5.2,
-    "frames": 156,
-    "sha256": "42c9fe9d5b5a3cfae607dc94ab0314ed2efdf210529d49650c896fb560c6b524",
-    "bytes": 2813186
+    "frames": 312,
+    "sha256": "f94076ea5c3d318ba4dc607fcb744f221bfc1a7822e7e14c1e8d994d7d0f7baa",
+    "bytes": 3401375
   },
   "idle": {
     "file": "sandrone-startup-idle.mp4",
     "seconds": 9,
-    "frames": 270,
-    "sha256": "c3a4aec0f885b414a28173a81b8c55ad001559a6770db9cf5d21923955a13dfb",
-    "bytes": 5541588
+    "frames": 540,
+    "sha256": "fea6b1151b04736ca5d26ed5feae86bb397a81d6b5e72c9b1e694ad3aba02668",
+    "bytes": 6167424
   },
   "poster": {
     "file": "sandrone-startup-poster.jpg",
@@ -59,7 +59,7 @@
     "bytes": 213918
   },
   "source": {
-    "fingerprint": "b7bfee99be5539cfd77c6f0622746d1858434fa5db6e1dd9dd21294b9cb0c2ee",
+    "fingerprint": "ab4bf9793f315abfc087e50e7b2fc9803612702725e7a7deaf28d97769248085",
     "files": [
       {
         "file": "assets/LICENSE.txt",
@@ -147,29 +147,29 @@
       },
       {
         "file": "tools/startup-media.mjs",
-        "sha256": "ea42bd4e4728cc9dbc8e27c3914fd6e3ea920c2c3a0386133863f0ed1a491f87"
+        "sha256": "55f297888e4d9c059c6496c9803fe6e1c86640e6a4e736822ff30e823c0f6200"
       },
       {
         "file": "tools/startup-recipe.json",
-        "sha256": "161892b4dc29ab6b0b71af2ea5cb2eaed57f4ec54e71956526a33ed6aa980ee6"
+        "sha256": "33ee5ac0df94048a241595f00b1ce85fc0b127a8479f3f1bb16c5155491736e5"
       },
       {
         "file": "tools/startup-scene.mjs",
-        "sha256": "450422c9d8ec06a543c326f80895a289cd077d050bb8dbc2904ca6dff7012472"
+        "sha256": "0409c00e915bf545c48801d9413cd3d754137f0cfd394c90473cacaca2bdf28e"
       }
     ],
     "recipe": {
       "schema": 1,
       "width": 1920,
       "height": 1080,
-      "fps": 30,
+      "fps": 60,
       "intro": {
         "start": 0,
-        "frames": 156
+        "frames": 312
       },
       "idle": {
         "start": 5.2,
-        "frames": 270
+        "frames": 540
       },
       "colorStart": 2.1,
       "colorDuration": 1.15,

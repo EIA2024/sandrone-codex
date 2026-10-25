@@ -19,11 +19,11 @@ async function fixture(t) {
   // Tiny bytes exercise publication and cache invalidation only. Real video
   // dimensions, frame counts and decoding are checked by FFprobe/Chromium.
   async function render(directory, marker = 'one') {
-    const manifest = { schema: 1, width: 1920, height: 1080, fps: 30, audio: false, recipe };
+    const manifest = { schema: 1, width: 1920, height: 1080, fps: recipe.fps, audio: false, recipe };
     for (const [kind, file] of Object.entries(mediaFiles)) {
       const bytes = Buffer.concat([file.endsWith('.mp4') ? Buffer.from('\0\0\0\x18ftyp') : Buffer.from([255, 216, 255]), Buffer.from(marker)]);
       await fs.writeFile(path.join(directory, file), bytes);
-      manifest[kind] = { file, bytes: bytes.length, sha256: sha256(bytes), ...(recipe[kind] ? { frames: recipe[kind].frames, seconds: recipe[kind].frames / 30 } : {}) };
+      manifest[kind] = { file, bytes: bytes.length, sha256: sha256(bytes), ...(recipe[kind] ? { frames: recipe[kind].frames, seconds: recipe[kind].frames / recipe.fps } : {}) };
     }
     return manifest;
   }
@@ -126,7 +126,7 @@ test('manifests cannot redirect paths or claim a different timeline', async t =>
 
 test('timeline edits regenerate metadata; package checks bind copied inputs to the same generation', async t => {
   const f = await fixture(t); await ensureStartupMedia(f.root, { render: f.render });
-  f.recipe.intro.frames = 180; f.recipe.idle.start = 6;
+  f.recipe.intro.frames = 360; f.recipe.idle.start = 6;
   await fs.writeFile(path.join(f.root, 'tools/startup-recipe.json'), JSON.stringify(f.recipe));
   await assert.rejects(checkStartupMedia(f.root), /sources changed/);
   await ensureStartupMedia(f.root, { render: f.render });
@@ -138,4 +138,18 @@ test('timeline edits regenerate metadata; package checks bind copied inputs to t
   await assert.rejects(checkStartupPackage(packaged, '0'.repeat(64)), /source version differs/);
   await fs.writeFile(path.join(packaged, 'assets/portrait.png'), 'wrong source');
   await assert.rejects(checkStartupPackage(packaged, manifest.source.fingerprint), /differs from rendered source/);
+});
+
+
+test('media frame rate must match the source recipe', async t => {
+  const f = await fixture(t);
+  await ensureStartupMedia(f.root, { render: f.render });
+  const manifestFile = path.join(f.out, 'startup.json');
+  const manifest = JSON.parse(await fs.readFile(manifestFile, 'utf8'));
+  assert.equal(manifest.fps, 60);
+  assert.equal(manifest.intro.seconds, 5.2);
+  assert.equal(manifest.idle.seconds, 9);
+  manifest.fps = 30;
+  await fs.writeFile(manifestFile, JSON.stringify(manifest));
+  await assert.rejects(validateStartupMedia(f.out, await readStartupInputs(f.root)), /Unsupported startup media format/);
 });
