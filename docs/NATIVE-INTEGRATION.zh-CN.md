@@ -77,7 +77,9 @@ node --test tests/native-manager.test.mjs
 - `tests/native-controls.browser.mjs` 在独立 Chromium 中验证菜单与键盘交互；`tests/native-integration.browser.mjs` 将真实 runtime 接到 Electron API 适配器，验证延迟主界面、菜单动作、主题切换及媒体生命周期。前者接受 `BROWSER_EXECUTABLE`，后者接受 `CHROMIUM_EXECUTABLE`；两者均可用 `PLAYWRIGHT_MODULE` 指定已有 Playwright。集成测试可通过 `SANDRONE_THEME_SOURCE` 指向另一个 checkout，检查与独立开屏优化的组合。适配器验证不代表真实 Electron/AppX 验收。
 - 2026-10-25 在 Windows 11 x64（build 26200）、官方 Codex `26.1021.3705.0` 上，将与开屏优化组合的 `0.2.0.0` 包实际安装并通过普通入口启动。确认转接与原 updater 模块加载、主题关闭/启用、菜单及标题栏重播、启动播放偏好写入磁盘，以及安排卸载后取消。取消后 worker 已退出、包仍注册，主题恢复启用。安装预检发现的 Windows PowerShell 5.1 `-File` 默认目录问题已修复，并验证旧实现失败、新实现通过。
 
-上述实机检查没有执行完整卸载。合并/发行前仍应补齐退出后真正移除、官方程序恢复启动、跨重启偏好读取及主包升级失配测试；播放帧率和不同 GPU/驱动环境也未测量。偏好已落盘不等于完成跨重启验证。
+- 同日使用独立测试 profile，在真实官方打包进程中通过菜单保存偏好并完整重启进程，验证三种组合：关闭主题且不播放开屏、启用主题但不播放开屏、启用主题且播放开屏。三组均正确读取偏好并呈现对应界面；这不是默认用户 profile 的跨重启验收。
+
+上述实机检查没有执行完整卸载。退出后卸载验收曾安排等待正常退出，随后在执行前取消，已确认 worker 退出且附加包仍注册。合并/发行前仍应补齐退出后真正移除、官方程序恢复启动及主包升级失配测试。实机包组合了独立开屏优化，因此其播放帧率结果不作为本 PR 单独安装时的性能结论；不同 GPU/驱动环境未覆盖。
 
 ## 文件与官方依据
 
