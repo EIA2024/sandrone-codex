@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {prepareOpening as prepareMedia, removeNativeUi} from '../engine/renderer.mjs';
-import {prepareOpening, releaseOpening} from '../engine/opening-client.mjs';
+import {prepareOpening, showOpening, releaseOpening} from '../engine/opening-client.mjs';
+import {applyTargets} from '../engine/target-runner.mjs';
 
 class Media extends EventTarget {
  constructor(){super();this.style={};this.dataset={};this.readyState=0;this.currentTime=0;this.paused=true;}
@@ -51,4 +52,43 @@ const earlyEvaluate=async expression=>{
 };
 assert.deepEqual(await prepareOpening(earlyEvaluate,large),{prepared:false,reason:'cancelled'});
 assert.equal(earlyContext.window.__SANDRONE_OPENING_INPUT__,undefined);
-console.log('PASS: bounded transfer, cancellation before/during transfer, media-ready cancellation and idempotent release');
+
+// Exercise the real startup coordinator and client together: restoring during
+// preload, or after preload while verification is pending, must not reprepare.
+for (const afterReady of [false,true]) {
+ globalThis.window={};let transfers=0,openingCalls=0,shown;
+ const startupAssets=afterReady?{}:{video:'data:video/mp4;base64,eA=='};
+ const evaluate=async expression=>{
+  if(expression.includes('window.__SANDRONE_OPENING_INPUT__={token:')){
+   transfers++;
+   assert.equal(transfers,1,'restoring during startup must not initiate another media transfer');
+  }
+  return (0,eval)(expression);
+ };
+ const session={close(){},evaluate:async expression=>{
+  if(expression.startsWith('Boolean(document.visibility')||expression.includes('__CODEX_DREAM_SKIN_STATE__')||expression.startsWith('window.__SANDRONE_NATIVE_UI__')||expression.includes('function setStartupPhase'))return true;
+  return evaluate(expression);
+ }};
+ await applyTargets({pages:[{id:'startup'}],connect:async()=>session,
+  resources:async()=>({loaded:{revision:'test',theme:{id:'sandrone'}},css:''}),
+  prepareOpening:()=>prepareOpening(evaluate,startupAssets),
+  opening:async(_session,prepared)=>{openingCalls++;shown=await showOpening(evaluate,startupAssets,{},prepared);},
+  verify:async()=>{
+   while(!window.__SANDRONE_MEDIA_CACHE__)await new Promise(resolve=>setTimeout(resolve,1));
+   if(afterReady)await window.__SANDRONE_MEDIA_CACHE__.ready;
+   removeNativeUi();return {pass:true};
+  }});
+ assert.equal(transfers,1);assert.equal(window.__SANDRONE_MEDIA_CACHE__,undefined);
+ if(afterReady)assert.deepEqual(shown,{shown:false,reason:'cancelled'});
+ else assert.equal(openingCalls,0,'a cancelled preparation must not enter playback');
+}
+
+// Even a newly enabled cache must not make an older display request valid.
+globalThis.window={};
+const directEvaluate=async expression=>(0,eval)(expression);
+const oldPreparation=await prepareOpening(directEvaluate,{});
+await releaseOpening(directEvaluate);
+await prepareOpening(directEvaluate,{});
+assert.deepEqual(await showOpening(directEvaluate,{}, {},oldPreparation),{shown:false,reason:'cancelled'});
+await releaseOpening(directEvaluate);
+console.log('PASS: bounded transfer, startup cancellation during/after preparation, stale display rejection, media-ready cancellation and idempotent release');

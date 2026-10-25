@@ -18,7 +18,8 @@ function revisionFor(assets) {
 
 async function transfer(evaluate, assets, revision) {
   const state = await evaluate(`({epoch:window.__SANDRONE_OPENING_EPOCH__||0,reusable:Boolean(window.__SANDRONE_PLAYER__?.revision===${JSON.stringify(revision)}&&window.__SANDRONE_MEDIA_CACHE__?.revision===${JSON.stringify(revision)}&&!window.__SANDRONE_MEDIA_CACHE__.disposed&&window.__SANDRONE_MEDIA_CACHE__.reduced===matchMedia('(prefers-reduced-motion:reduce)').matches)})`);
-  if (state.reusable) return evaluate("window.__SANDRONE_MEDIA_CACHE__?.ready??{prepared:false,reason:'cancelled'}", mediaTimeout);
+  const withContext = result => result?.prepared ? {...result, epoch: state.epoch, revision} : result;
+  if (state.reusable) return withContext(await evaluate("window.__SANDRONE_MEDIA_CACHE__?.ready??{prepared:false,reason:'cancelled'}", mediaTimeout));
 
   const token = randomUUID();
   // A restore or newer transfer deletes/replaces this token. Every later chunk
@@ -37,7 +38,7 @@ async function transfer(evaluate, assets, revision) {
       }
       await evaluate(`(()=>{${guard}${property}=JSON.parse(${property}.join(''));})()`);
     }
-    return await evaluate(`(()=>{${guard}delete window.__SANDRONE_OPENING_INPUT__;window.__SANDRONE_PLAYER__={revision:${JSON.stringify(revision)},show:(${showRenderer.toString()})};return (${prepareRenderer.toString()})(input.assets,${JSON.stringify(revision)});})()`, mediaTimeout);
+    return withContext(await evaluate(`(()=>{${guard}delete window.__SANDRONE_OPENING_INPUT__;window.__SANDRONE_PLAYER__={revision:${JSON.stringify(revision)},show:(${showRenderer.toString()})};return (${prepareRenderer.toString()})(input.assets,${JSON.stringify(revision)});})()`, mediaTimeout));
   } catch (error) {
     try { await evaluate(`if(window.__SANDRONE_OPENING_INPUT__?.token===${JSON.stringify(token)})delete window.__SANDRONE_OPENING_INPUT__;`); } catch {}
     if (String(error.message).includes('Opening preparation cancelled')) return {prepared: false, reason: 'cancelled'};
@@ -58,11 +59,13 @@ export function prepareOpening(evaluate, assets) {
   return entry.promise;
 }
 
-/** Show or replay the prepared scene without resending media payloads. */
-export async function showOpening(evaluate, assets, options = {}) {
-  const prepared = await prepareOpening(evaluate, assets);
+/** Show/replay media, optionally consuming the caller's earlier preparation. */
+export async function showOpening(evaluate, assets, options = {}, preparation) {
+  const prepared = preparation ?? await prepareOpening(evaluate, assets);
   if (!prepared?.prepared) return {shown: false, reason: prepared?.reason || 'cancelled'};
-  return evaluate(`window.__SANDRONE_PLAYER__?.show(null,${JSON.stringify(options)})??{shown:false,reason:'cancelled'}`, mediaTimeout);
+  // Check cancellation in the same renderer turn that acquires the scene. A
+  // restore after preloading must not start a new transfer or a later scene.
+  return evaluate(`(()=>{if((window.__SANDRONE_OPENING_EPOCH__||0)!==${JSON.stringify(prepared.epoch)}||window.__SANDRONE_PLAYER__?.revision!==${JSON.stringify(prepared.revision)})return {shown:false,reason:'cancelled'};return window.__SANDRONE_PLAYER__.show(null,${JSON.stringify(options)});})()`, mediaTimeout);
 }
 
 /** Cancel pending preparation and fully release media when disabling a theme. */

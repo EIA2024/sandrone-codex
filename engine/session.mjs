@@ -18,11 +18,11 @@ const evaluators=new WeakMap();
 const evaluateFor=session=>{if(!evaluators.has(session))evaluators.set(session,(code,options)=>session.evaluate(code,options));return evaluators.get(session);};
 const assets=()=>assetsPromise??=openingAssets();
 async function prepare(session){return prepareOpening(evaluateFor(session),await assets());}
-async function opening(session){
+async function opening(session,prepared){
  if(openingShown)return;
  // Reserve the single opening before awaiting assets so two targets cannot race.
  openingShown=true;
- try{await showOpening(evaluateFor(session),await assets());}catch(error){openingShown=false;throw error;}
+ try{await showOpening(evaluateFor(session),await assets(),{},prepared);}catch(error){openingShown=false;throw error;}
 }
 async function apply({start=false,force=false,verify=false,connector=connect}={}){
  return applyTargets({pages:await appPages(browserId),connect:connector,resources,verify:verify?verifySession:null,prepareOpening:start?prepare:null,opening:start?opening:null,force});

@@ -56,6 +56,9 @@ try{
  assert.equal(await page.locator('#sandrone-opening').count(),1);await clear();checks.push('broken-media-static-fallback');
  await prepareOpening(evaluate,assets);const pending=showOpening(evaluate,assets,{preview:true});await clear();
  assert.equal((await pending).shown,false);assert.equal(await page.locator('#sandrone-opening,#sandrone-media-parking').count(),0);checks.push('cancel-before-visible');
+ const stalePreparation=await prepareOpening(evaluate,assets);await clear();await prepareOpening(evaluate,assets);
+ assert.deepEqual(await showOpening(evaluate,assets,{preview:true},stalePreparation),{shown:false,reason:'cancelled'});
+ assert.equal(await page.locator('#sandrone-opening').count(),0);checks.push('stale-preparation-cannot-display-new-cache');
  await showOpening(evaluate,assets,{preview:true});await page.keyboard.press('Escape');await page.waitForTimeout(800);
  await page.evaluate(()=>{window.savedRAF=window.requestAnimationFrame;window.requestAnimationFrame=()=>0;});
  const duringShow=showOpening(evaluate,assets,{preview:true});await page.waitForFunction(()=>window.__SANDRONE_OPENING_STATE__?.stage==='preparing');

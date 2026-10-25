@@ -19,12 +19,12 @@ import {prepareOpening, showOpening, releaseOpening} from './engine/opening-clie
 
 // evaluate(code, options) must resolve the renderer's promise and return its value.
 const evaluate = (code, options) => session.evaluate(code, options);
-await prepareOpening(evaluate, assets);
-await showOpening(evaluate, assets, {replay: true});
+const prepared = await prepareOpening(evaluate, assets);
+await showOpening(evaluate, assets, {replay: true}, prepared);
 await releaseOpening(evaluate);
 ```
 
-同一窗口复用稳定的 `evaluate` 函数；素材对象应在该会话中保持不可变。准备和显示的调用会传入 `{timeoutMs: 15000}`，供 CDP 保留媒体等待余量；Electron 的 `executeJavaScript` 包装可忽略该选项，但必须等待渲染端 Promise。普通 CDP 命令仍使用原有 3 秒超时。直接序列化渲染函数的离线预览先调用 `prepareOpening`，再调用 `showOpening`。
+同一窗口复用稳定的 `evaluate` 函数；素材对象应在该会话中保持不可变。调用方单独预加载后，应将准备结果作为 `showOpening` 的第四个参数传回，保留这次操作的取消状态；显示前会在渲染进程中核对准备时的取消代次与播放器版本。原有三个参数的调用继续自动准备并播放。准备和显示的调用会传入 `{timeoutMs: 15000}`，供 CDP 保留媒体等待余量；Electron 的 `executeJavaScript` 包装可忽略该选项，但必须等待渲染端 Promise。普通 CDP 命令仍使用原有 3 秒超时。直接序列化渲染函数的离线预览先调用 `prepareOpening`，再调用 `showOpening`。
 
 ## 验证
 

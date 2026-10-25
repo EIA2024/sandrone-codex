@@ -23,8 +23,8 @@ export async function applyTargets({pages,connect,resources,verify,prepareOpenin
    if(!nativePresent)await session.evaluate(call(installNativeUi,css));
    const ready=verify?Boolean((await verify(session,page.id,loaded.theme.id,loaded.revision))?.pass):true;
    if(verify||!skinPresent)await session.evaluate(call(setStartupPhase,ready?'ready':'waiting'));
-   await preparing;
-   if(opening)await opening(session);
+   const prepared=await preparing;
+   if(opening&&prepared?.prepared!==false)await opening(session,prepared);
    return {visible:true,ready};
   }finally{await session?.close();}
  }));
