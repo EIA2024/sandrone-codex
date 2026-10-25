@@ -70,26 +70,26 @@
     {
       "file": "assets/ornaments/burst.png",
       "sha256": "9c97f6d957d11d4b4568b815b7cbcf92b6d7aba01adbf64b950439ce43e84300"
-    },
+    },
     {
       "file": "assets/motion/startup.json",
-      "sha256": "0ee464c2c4030f7af3e86dd591b66ac48a1fa9c909256d70e9a2f5d0988a1482"
+      "sha256": "c1e714a0c1a5dad58596094e2333c4705378c7f43f93426af0ec97fb5875a85e"
     },
     {
       "file": "assets/motion/sandrone-startup-intro.mp4",
-      "sha256": "b07152ac3e34c3bdd5cce43d307698b02ee7d267ea9d01de91a66ca23628aa02"
+      "sha256": "42c9fe9d5b5a3cfae607dc94ab0314ed2efdf210529d49650c896fb560c6b524"
     },
     {
       "file": "assets/motion/sandrone-startup-idle.mp4",
-      "sha256": "12ba5bfdd5db070a8e3ca3e747665776758633be5b5b9e15dc5233a6dbe3b2ed"
+      "sha256": "c3a4aec0f885b414a28173a81b8c55ad001559a6770db9cf5d21923955a13dfb"
     },
     {
       "file": "assets/motion/sandrone-startup-poster.jpg",
-      "sha256": "aee743d29b9fd0fb2ba5ce8e5d52c5d784ec8db8b33795353964fdb12c7928e8"
+      "sha256": "b6fa21da95afbf39bb681eca27d882047e29492a7f004901f1a023c991516914"
     },
     {
       "file": "assets/motion/sandrone-startup-still.jpg",
-      "sha256": "dcd6f588ea35a0aae0ef0272ba9f2c44add803c11c26d0f6c5e014d30a524fe6"
+      "sha256": "fa6cdbb5691ed928e6540cd532408913014018f3c23a5a00be34af53c89c91d3"
     }
   ]
 }

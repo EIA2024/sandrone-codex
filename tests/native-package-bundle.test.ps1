@@ -28,6 +28,17 @@ try {
     if ((Entry-Hash ($native + 'windows-updater.node')) -cne $bundle.proxySha256) { throw 'Native bridge bytes changed.' }
     $installation = Read-Entry ($native + 'sandrone/installation.json') | ConvertFrom-Json
     if ($installation.addonPackageFullName -cne $bundle.addonPackageFullName -or $installation.targetPackage -cne $bundle.targetPackage) { throw 'Runtime metadata differs from package identity.' }
+    $startup = Read-Entry ($native + 'sandrone/theme/assets/motion/startup.json') | ConvertFrom-Json
+    if ($startup.source.fingerprint -notmatch '^[a-f0-9]{64}$' -or $startup.source.fingerprint -cne $bundle.startupSourceFingerprint -or $startup.source.fingerprint -cne $installation.startupSourceFingerprint) { throw 'Startup source version differs from the build receipt.' }
+    foreach ($inputFile in $startup.source.files) {
+        Assert-SandroneRelativePath $inputFile.file
+        if ($inputFile.file -match '^(engine|assets)/' -and (Entry-Hash ($native + 'sandrone/theme/' + $inputFile.file)) -cne $inputFile.sha256) { throw ('Packaged startup input differs from the rendered source: ' + $inputFile.file) }
+    }
+    foreach ($asset in @($startup.intro, $startup.idle, $startup.poster, $startup.still)) {
+        if ($asset.file -notmatch '^sandrone-startup-(intro|idle|poster|still)\.(mp4|jpg)$') { throw 'Invalid startup media path.' }
+        $entryName = $native + 'sandrone/theme/assets/motion/' + $asset.file
+        if ((Entry-Hash $entryName) -cne $asset.sha256 -or $archive.GetEntry($entryName).Length -ne $asset.bytes) { throw ('Packaged startup output differs from its manifest: ' + $asset.file) }
+    }
     foreach ($relative in @('runtime/main.cjs', 'runtime/controls.cjs', 'runtime/startup.cjs', 'runtime/startup-preload.cjs', 'runtime/startup-readiness.cjs', 'management/uninstall.ps1', 'theme/engine/renderer.mjs', 'theme/vendor/dream-skin/windows/scripts/injector.mjs', 'theme/themes/sandrone/manifest.json', 'theme/assets/motion/sandrone-loop-1080p.mp4', 'theme/assets/motion/startup.json', 'theme/assets/motion/sandrone-startup-intro.mp4', 'theme/assets/motion/sandrone-startup-idle.mp4', 'theme/assets/motion/sandrone-startup-poster.jpg', 'theme/assets/motion/sandrone-startup-still.jpg')) {
         if (!$archive.GetEntry($native + 'sandrone/' + $relative)) { throw ('Bundle is not self-contained: ' + $relative) }
     }

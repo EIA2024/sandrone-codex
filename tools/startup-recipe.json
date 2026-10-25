@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "intro": { "start": 0, "frames": 156 },
+  "idle": { "start": 5.2, "frames": 270 },
+  "colorStart": 2.1,
+  "colorDuration": 1.15,
+  "traceEnd": 3.4,
+  "sourceLoopSeconds": 9,
+  "encoder": { "preset": "medium", "crf": 18, "threads": 2 },
+  "posterQuality": 85
+}

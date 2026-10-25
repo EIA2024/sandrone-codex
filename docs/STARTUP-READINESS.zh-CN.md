@@ -1,6 +1,6 @@
 # 原生启动画面与真实阶段进度
 
-此功能属于原生附加包 0.3.1.0，依赖原生集成 PR1。仍只针对 Windows 11 x64 和 Codex 26.1021.3705.0；便携 CDP 启动器保留原播放器。
+当前原生附加包版本为 0.3.2.0，依赖原生集成 PR1；0.3.1.0 的实机结果单独记录在下文。仍只针对 Windows 11 x64 和 Codex 26.1021.3705.0；便携 CDP 启动器保留原播放器。
 
 ## 启动与进入
 
@@ -26,9 +26,33 @@
 
 原生路径通过当前 Codex 的 `app://fs/@fs/` 本地媒体路由读取视频，保留 Range 支持，不把整段视频 Base64 序列化到 JavaScript。图片小，允许嵌入首帧以避免等待媒体路由。退出开屏或禁用主题会暂停并释放视频源。视频解码及显示仍消耗资源。
 
-构建核对媒体清单中的尺寸、帧率、字节数与 SHA256；安装不转码。制作工程、时间轴、逐帧样本与本地探针保存在 ignored `dist/opening-authoring/` 和 `dist/local-acceptance/`，不进入包或 PR。重新制作素材后更新清单和来源摘要。
+制作脚本与时间轴现在保存在仓库 `tools/startup-scene.mjs` 和 `tools/startup-recipe.json`；继续提交四个发布媒体及 `startup.json`，供安装包直接携带。最初的一次性制作脚本、逐帧样本和本机探针留在 ignored `dist/`。安装及日常启动不生成或转码视频。
 
-## 验证与限制（2026-10-25）
+## 构建时生成开屏
+
+`native-integration/build.ps1` 与 `Build-From-Source.ps1` 都执行以下流程：
+
+1. 对动画 renderer、素材加载代码、生成脚本、时间轴和源素材计算内容指纹，并校验现有四个媒体文件的大小、SHA256 和来源清单。只看文件存在或时间戳不足以判为有效。
+2. 输入和产物一致时复用已提交的视频，不启动浏览器或 FFmpeg；输入变化、旧格式清单、输出缺失或损坏时，先在 ignored `dist/startup-render-*` 中生成完整新产物。
+3. FFprobe 检查真实编码、1080p 尺寸、30 fps、帧数和无音轨；生成后再次确认输入未变化。完整校验后替换视频、图片及清单；渲染失败保留旧产物并停止构建，不能继续打包旧视频。
+4. 打包前检查实际复制的 renderer、源素材和视频是否对应同一来源指纹。原生 `installation.json` 与 `bundle.json` 均记录该指纹，MSIX 本身仍有整包 SHA256。
+
+开发者修改动画后运行正常构建即可，也可单独运行：
+
+```powershell
+node tools/render-startup.mjs --ensure # 自动检查，需要时重新生成
+node tools/render-startup.mjs --check  # 只检查；过期或损坏时返回非零
+node tools/render-startup.mjs --force  # 强制重新生成
+node --test tests/startup-generation.test.mjs
+```
+
+构建检查使用 Node.js 24+。只有重新生成需要 Playwright、Chromium/Chrome/Edge 和提供 `libx264` 的 FFmpeg，以及 FFprobe。脚本优先读取 `PLAYWRIGHT_MODULE`、`CHROMIUM_EXECUTABLE`、`FFMPEG_PATH`、`FFPROBE_PATH`；未指定时尝试已安装的 Playwright/浏览器和 PATH 中的编码工具。它不会下载依赖或改变用户安装环境；缺少依赖时构建失败并说明缺项。
+
+提交动画修改时一并提交重新生成的视频、`startup.json` 和 `assets/PROVENANCE.json`。来源指纹用于识别输入版本，输出 SHA256 用于识别具体媒体；不同浏览器/编码器版本可能生成不同字节，生成环境记录在清单中，不承诺跨机器字节完全一致。发布新的原生安装包时仍须提升 `compatibility.json` 中的附加包版本，来源指纹不替代 Windows 包版本。
+
+生成过程中有文件锁；异常中止后先确认对应进程已退出，再清理 `dist/startup-render.lock` 并重跑。失败现场与备份仅在本地 `dist/` 保留。生产运行时仍从当前包内的固定相对路径读取媒体，不去寻找旧构建目录或本机缓存。
+
+## 验证与限制
 
 本轮已运行 Node 回归、独立 Chrome 156 的真实视频/状态测试、原生 runtime + Electron API 适配器检查，以及 Windows PowerShell 5.1 生命周期 fixtures、实际 GCC/N-API 桥接和自包含 MSIX 检查。浏览器 document-start 检查确认遮罩在第一个 animation frame 前存在；这不等同于 Windows 原生窗口首次绘制验收。
 
@@ -51,5 +75,7 @@ powershell.exe -NoProfile -File tests/native-package-bundle.test.ps1 -BundleDire
 0.3.1.0 将合法请求改为只回复一次配置。新增同步回复回归已核实旧实现失败、修复后通过；浏览器集成适配器也改为消费首个回复。同版官方二进制的独立解包测试副本已记录开屏挂载、视频首帧，以及真实服务、工作区和主题检查的五项就绪。该测试使用独立 profile，隐藏窗口中的媒体与绘制行为不作为正常显示验收。
 
 2026-10-25 22:08（北京时间），独立安装器成功注册 0.3.1.0，并通过无调试参数的普通 AUMID 入口重开 Codex。实际原生日志记录了早期 preload 注册、遮罩挂载、视频首帧、片头播完、五项就绪和进入工作区；随后一次重播也记录到挂载、视频首帧、片头播完和再次进入。已回读系统包注册确认版本。用户确认当前效果可以提交正式 PR；这不是逐帧录像或独立审查结论。
+
+2026-10-26 的 0.3.2.0 构建验证：8 项新增生成回归及全部 Node 回归通过，覆盖内容变化、同大小文件损坏、失败保留旧产物、替换失败回滚、并发和来源混用。实际重新生成了片头、循环与两张图片，FFprobe 确认 1080p/30 fps、156/270 帧且无音轨；新的媒体通过 Chrome 启动播放与原生 IPC 适配器回归。Windows PowerShell 5.1 下的完整源码构建、原生 MSIX 构建和包内来源/媒体哈希校验均通过。将渲染依赖路径设为不存在后，未变化产物仍能通过 `--ensure`。本轮未安装 0.3.2.0；上述结果不替代其真实客户端安装验收。
 
 验证限制与后续工作：尚未录制原生窗口首次绘制，不能量化原生标志或工作区闪现；尚未完成本版完整进程启动与热重播的同条件性能对比、长帧和掉帧采样。原生托盘恢复、登录恢复、两种进入模式及新偏好的完整跨重启矩阵也未全部复测。相关浏览器/适配器回归不代替这些实机检查；历史 0.2.0.0 性能结果不代表本版。
