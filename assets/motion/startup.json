@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "width": 1920,
+  "height": 1080,
+  "fps": 60,
+  "codec": "H.264 yuv420p",
+  "audio": false,
+  "recipe": {
+    "schema": 1,
+    "width": 1920,
+    "height": 1080,
+    "fps": 60,
+    "intro": {
+      "start": 0,
+      "frames": 312
+    },
+    "idle": {
+      "start": 5.2,
+      "frames": 540
+    },
+    "colorStart": 2.1,
+    "colorDuration": 1.15,
+    "traceEnd": 3.4,
+    "sourceLoopSeconds": 9,
+    "encoder": {
+      "preset": "medium",
+      "crf": 18,
+      "threads": 2
+    },
+    "posterQuality": 85
+  },
+  "generator": {
+    "node": "24.2.0",
+    "browser": "156.0.8078.47",
+    "encoder": "ffmpeg version 7.1.1-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers"
+  },
+  "intro": {
+    "file": "sandrone-startup-intro.mp4",
+    "seconds": 5.2,
+    "frames": 312,
+    "sha256": "f94076ea5c3d318ba4dc607fcb744f221bfc1a7822e7e14c1e8d994d7d0f7baa",
+    "bytes": 3401375
+  },
+  "idle": {
+    "file": "sandrone-startup-idle.mp4",
+    "seconds": 9,
+    "frames": 540,
+    "sha256": "fea6b1151b04736ca5d26ed5feae86bb397a81d6b5e72c9b1e694ad3aba02668",
+    "bytes": 6167424
+  },
+  "poster": {
+    "file": "sandrone-startup-poster.jpg",
+    "sha256": "b6fa21da95afbf39bb681eca27d882047e29492a7f004901f1a023c991516914",
+    "bytes": 63339
+  },
+  "still": {
+    "file": "sandrone-startup-still.jpg",
+    "sha256": "fa6cdbb5691ed928e6540cd532408913014018f3c23a5a00be34af53c89c91d3",
+    "bytes": 213918
+  },
+  "source": {
+    "fingerprint": "ab4bf9793f315abfc087e50e7b2fc9803612702725e7a7deaf28d97769248085",
+    "files": [
+      {
+        "file": "assets/LICENSE.txt",
+        "sha256": "341441e008c80f0118dc248a96b0016455d2f4de5626400f8bb9987b0ebc265c"
+      },
+      {
+        "file": "assets/backgrounds/dark-mechanical.jpg",
+        "sha256": "7b03e4c651b66f5709732169c9d1e375d4c824c648958ef405c7657dd37c4dd3"
+      },
+      {
+        "file": "assets/branding/sandrone-signature.json",
+        "sha256": "738a404d2d0157ad9f5032074ba34656dc2a0b1419a9fb9c53515e926ef36e2c"
+      },
+      {
+        "file": "assets/branding/signature-reference.jpg",
+        "sha256": "1ccd863141ab8e2e06226c992ec53cb758ceb2731991b3fdbf7689b69894aa03"
+      },
+      {
+        "file": "assets/characters/sandrone/portrait.png",
+        "sha256": "acbd806b9c447c531593175de13da9182468c82001f9b6d55bb3ca964a859cae"
+      },
+      {
+        "file": "assets/characters/sandrone/round-icon.png",
+        "sha256": "ccce4e1c2d93e0e2df3b9d42e35d1466b148de2b66ab75b7273cc1045955265e"
+      },
+      {
+        "file": "assets/motion/derived.json",
+        "sha256": "90f31d9212fe075873fa9cad917be996ba04a32bcaa9d9ab7f4ce5d29711b1dd"
+      },
+      {
+        "file": "assets/motion/sandrone-first-frame.jpg",
+        "sha256": "49a248d7f791e83d55359e0c418ab3f8e181ee9902c9a567178b18b922b88f45"
+      },
+      {
+        "file": "assets/motion/sandrone-loop-1080p.mp4",
+        "sha256": "539af561ef48548369bc8acf98bdb654e36b0beb8739a2e52e71b6a5d9804f18"
+      },
+      {
+        "file": "assets/motion/sandrone-outline.json",
+        "sha256": "49d6c05672f3a0f9e40cf26bd5b7c10f4894297b9f593ff317929679a4553e3a"
+      },
+      {
+        "file": "assets/motion/sandrone-trace-1080p.mp4",
+        "sha256": "039615bf2af549ba23514af80db3e21bad3b2fb3602f158cd1a21d22942677ca"
+      },
+      {
+        "file": "assets/ornaments/01_ornate_gear.png",
+        "sha256": "ae5244762dd7b1535bf50a90cfcdab8dfbf27addf121bece59e6fc6bd2a04a2f"
+      },
+      {
+        "file": "assets/ornaments/02_mechanical_iris.png",
+        "sha256": "a79ee38caf3df62adc4debf576a1549bd34c8475740cd873b1b682a0f4b16a38"
+      },
+      {
+        "file": "assets/ornaments/04_marionette_strings.png",
+        "sha256": "242d34ba63c711ffff7c125f2737eb796e615613d74f60d5a5fe059c5f868819"
+      },
+      {
+        "file": "assets/ornaments/burst.png",
+        "sha256": "9c97f6d957d11d4b4568b815b7cbcf92b6d7aba01adbf64b950439ce43e84300"
+      },
+      {
+        "file": "assets/ornaments/cryo.png",
+        "sha256": "3112c4d0aeb5faa3140eca25cc4da8ccf5b2c744a71bfe5a9ecebc744a5432ba"
+      },
+      {
+        "file": "assets/ornaments/skill.png",
+        "sha256": "bcef24870c544df1f6415f366b9deb7b37cb0615590aedccaba8e0d1339ca389"
+      },
+      {
+        "file": "assets/workshop.ico",
+        "sha256": "a0b4de07d2051f74a8f83640d62391177ef462dca49c950b0e63ca31bfb45c46"
+      },
+      {
+        "file": "engine/assets.mjs",
+        "sha256": "8ab2c58ec43c1c95e4148ecd81bf847ae4a09d5213b179b08d8b1e883034d8a5"
+      },
+      {
+        "file": "engine/renderer.mjs",
+        "sha256": "f1893e13155da0c439bb5f1030137382cc73174a1f01dbe2d93622c8457b0147"
+      },
+      {
+        "file": "tools/render-startup.mjs",
+        "sha256": "c88dccae03eb38c96a68a93b2f0edf680609353f3f0fb42b2fb75102485cea4e"
+      },
+      {
+        "file": "tools/startup-media.mjs",
+        "sha256": "55f297888e4d9c059c6496c9803fe6e1c86640e6a4e736822ff30e823c0f6200"
+      },
+      {
+        "file": "tools/startup-recipe.json",
+        "sha256": "33ee5ac0df94048a241595f00b1ce85fc0b127a8479f3f1bb16c5155491736e5"
+      },
+      {
+        "file": "tools/startup-scene.mjs",
+        "sha256": "0409c00e915bf545c48801d9413cd3d754137f0cfd394c90473cacaca2bdf28e"
+      }
+    ],
+    "recipe": {
+      "schema": 1,
+      "width": 1920,
+      "height": 1080,
+      "fps": 60,
+      "intro": {
+        "start": 0,
+        "frames": 312
+      },
+      "idle": {
+        "start": 5.2,
+        "frames": 540
+      },
+      "colorStart": 2.1,
+      "colorDuration": 1.15,
+      "traceEnd": 3.4,
+      "sourceLoopSeconds": 9,
+      "encoder": {
+        "preset": "medium",
+        "crf": 18,
+        "threads": 2
+      },
+      "posterQuality": 85
+    }
+  }
+}

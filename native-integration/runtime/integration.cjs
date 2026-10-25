@@ -7,6 +7,7 @@ const { readPreferences, writePreferences } = require('./preferences.cjs');
 const { isShellUrl, readAction } = require('./boundary.cjs');
 const { installControls } = require('./controls.cjs');
 const { createManagement } = require('./management.cjs');
+const { createStartup } = require('./startup.cjs');
 
 const call = (fn, ...args) => `(${fn.toString()})(${args.map(value => JSON.stringify(value)).join(',')})`;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -39,6 +40,7 @@ function startIntegration(electron, installationRoot, installation) {
   };
   const windows = new Map();
   let startupOpeningShown = false;
+  let earlyStartup;
   let modulesPromise, skinPromise, assetsPromise;
   const load = relative => import(pathToFileURL(path.join(themeRoot, relative)).href);
   const modules = () => modulesPromise ??= Promise.all([
@@ -72,12 +74,14 @@ function startIntegration(electron, installationRoot, installation) {
   const manager = new ThemeManager(readPreferences(dataRoot), {
     save: async preferences => writePreferences(dataRoot, preferences),
     applyAll: async enabled => {
+      earlyStartup?.update(manager.snapshot());
       const results = await Promise.allSettled(all().map(entry => apply(entry, enabled)));
       const failed = results.find(result => result.status === 'rejected');
       if (failed) throw failed.reason;
     },
     replay: async win => { if (eligible(win)) await play(windows.get(win.id), true); },
     updateControls: async state => {
+      earlyStartup?.update(state);
       await Promise.allSettled(all().map(entry => evaluate(entry)(call(installControls, entry.prefix, state))));
     },
     confirmUninstall: async win => {
@@ -121,10 +125,12 @@ function startIntegration(electron, installationRoot, installation) {
     await run('window.__CODEX_DREAM_SKIN_DISABLED__ = false');
     await run(loaded.payload);
     await run(call(renderer.installNativeUi, css));
-    await run(call(renderer.setStartupPhase, 'ready'));
+    if (earlyStartup) earlyStartup.setTheme(entry.win, loaded);
+    else await run(call(renderer.setStartupPhase, 'ready'));
   }
 
   async function play(entry, replay = false) {
+    if (earlyStartup) { if (replay) earlyStartup.replay(entry.win); return; }
     const generation = entry.generation;
     const valid = () => eligible(entry.win) && generation === entry.generation && manager.preferences.enabled;
     const [{ renderer, openingClient }, openingAssets] = await Promise.all([modules(), assets()]);
@@ -190,10 +196,10 @@ function startIntegration(electron, installationRoot, installation) {
       void manager.dispatch(action, win).catch(error => log('action-error', error));
     });
     win.webContents.on('did-start-navigation', (_event, _url, inPlace, mainFrame) => {
-      if (mainFrame && !inPlace) invalidate(entry);
+      if (mainFrame && !inPlace) { earlyStartup?.invalidate(win); invalidate(entry); }
     });
     win.webContents.on('did-finish-load', () => { void loaded(entry).catch(error => log('window-error', error)); });
-    win.on('closed', () => { invalidate(entry); windows.delete(win.id); });
+    win.on('closed', () => { earlyStartup?.invalidate(win); invalidate(entry); windows.delete(win.id); });
     if (!win.webContents.isLoading()) void loaded(entry).catch(error => log('window-error', error));
   }
 
@@ -207,6 +213,14 @@ function startIntegration(electron, installationRoot, installation) {
       manager.preferences.enabled = false;
     }
   } catch {}
+  earlyStartup = createStartup(electron, {
+    themeRoot, log, preferences: () => manager.snapshot(),
+    disable: () => manager.dispatch('disable'),
+    retry: wc => {
+      const entry = [...windows.values()].find(entry => entry.win.webContents === wc);
+      if (entry?.eligible) void manager.enqueue(() => apply(entry, manager.preferences.enabled)).catch(error => log('startup-retry-error', error));
+    },
+  });
   app.on('browser-window-created', (_event, win) => attach(win));
   // Settings stay in Codex userData; the plugin package is immutable and
   // uninstall preserves these preferences for a subsequent reinstall.

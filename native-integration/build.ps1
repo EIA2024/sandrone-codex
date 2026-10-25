@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory = $true)][string]$OfficialMsix,
     [string]$OutputDirectory,
     [string]$GccPath,
-    [string]$MakeAppxPath
+    [string]$MakeAppxPath,
+    [string]$NodePath,
+    [switch]$RebuildStartupMedia
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'package-common.ps1')
@@ -20,6 +22,14 @@ if (Test-Path -LiteralPath $output) { throw 'OutputDirectory must not already ex
 foreach ($file in @('runtime\main.cjs', 'runtime\controls.cjs', 'uninstall.ps1', 'install.ps1')) {
     if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot $file))) { throw ('Missing native integration source: ' + $file) }
 }
+if ($NodePath) { $node = (Get-Item -LiteralPath $NodePath).FullName }
+else {
+    $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+    if (!$nodeCommand) { throw 'Node.js 24+ is required for startup source validation. Add it to PATH or pass -NodePath.' }
+    $node = $nodeCommand.Source
+}
+$nodeVersion = & $node -p 'process.versions.node'
+if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'24.0.0') { throw 'Startup media build checks require Node.js 24 or later.' }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead($source)
 try {
@@ -47,6 +57,10 @@ try {
     [IO.Compression.ZipFileExtensions]::ExtractToFile($archive.GetEntry('app/resources/native/windows-updater.node'), $original)
 } finally { $archive.Dispose() }
 
+$renderMode = '--ensure'; if ($RebuildStartupMedia) { $renderMode = '--force' }
+& $node (Join-Path $repoRoot 'tools\render-startup.mjs') $renderMode --root $repoRoot
+if ($LASTEXITCODE -ne 0) { throw 'Startup media generation/validation failed; no package was created or installed.' }
+$startup = Get-Content -LiteralPath (Join-Path $repoRoot 'assets\motion\startup.json') -Raw | ConvertFrom-Json
 Copy-SandroneDirectory (Join-Path $PSScriptRoot 'runtime') (Join-Path $addon 'runtime')
 foreach ($directory in @('engine', 'vendor', 'themes', 'assets')) {
     Copy-SandroneDirectory (Join-Path $repoRoot $directory) (Join-Path $addon ('theme\' + $directory))
@@ -64,6 +78,7 @@ $installation = [ordered]@{
     targetPackage = $target.packageFullName
     targetExecutable = 'app/ChatGPT.exe'
     themeRoot = './theme'
+    startupSourceFingerprint = $startup.source.fingerprint
 }
 Write-SandroneJson (Join-Path $addon 'installation.json') $installation
 $proxy = Join-Path $native 'windows-updater.node'
@@ -86,6 +101,10 @@ $packageManifest = @"
 "@
 [IO.File]::WriteAllText((Join-Path $package 'AppxManifest.xml'), $packageManifest, (New-Object Text.UTF8Encoding($false)))
 $msix = Join-Path $output ('SandroneCodex.NativeTheme-' + $compatibility.addonVersion + '.msix')
+& $node (Join-Path $repoRoot 'tools\render-startup.mjs') --check --root $repoRoot
+if ($LASTEXITCODE -ne 0) { throw 'Startup sources or media changed during packaging; rebuild from a stable checkout.' }
+& $node (Join-Path $repoRoot 'tools\render-startup.mjs') --check-package (Join-Path $addon 'theme') --fingerprint $startup.source.fingerprint
+if ($LASTEXITCODE -ne 0) { throw 'Packaged startup inputs or media differ from the verified generation; no package was created.' }
 & $makeappx pack /d $package /p $msix /o *> (Join-Path $output 'package.log')
 if ($LASTEXITCODE -ne 0) { throw ('MSIX packaging failed. See ' + (Join-Path $output 'package.log')) }
 $bundle = [ordered]@{
@@ -96,6 +115,7 @@ $bundle = [ordered]@{
     officialHashes = $hashes; proxySha256 = Get-SandroneHash $proxy
     packageFile = [IO.Path]::GetFileName($msix); packageSha256 = Get-SandroneHash $msix
     sourceMsixSha256 = Get-SandroneHash $source
+    startupSourceFingerprint = $startup.source.fingerprint
 }
 Write-SandroneJson (Join-Path $output 'bundle.json') $bundle
 foreach ($file in @('install.ps1', 'uninstall.ps1', 'package-common.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $output }

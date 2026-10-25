@@ -2,6 +2,8 @@
 
 这是一项可选的 Windows MSIX modification package 集成。它在普通官方 Codex 启动时加载桑多涅主题，沿用官方 profile，不要求另开 CDP 调试端口。原有便携启动器继续保留。本方案不是 OpenAI 插件目录中的标准插件，也不是官方支持的主题接口。
 
+原生启动画面现采用独立早期 preload、离线合成视频和真实阶段进度，详见 [启动进度说明](STARTUP-READINESS.zh-CN.md)。0.3.1.0 修复启动握手问题并已安装，普通启动与重播均记录到视频播放和进入工作区。下文标明 0.2.0.0 的结果属于历史版本。
+
 ## 使用与退出
 
 安装后的主窗口提供「主题」菜单：选择桑多涅或原生界面、重播开屏、设置启动播放，以及安排卸载。禁用主题不卸载加载器；完全移除需要退出全部 Codex 窗口与托盘进程。
@@ -19,8 +21,9 @@ Windows 部署使用 `RemovePackageAsync` 的 `DeferRemovalWhenPackagesAreInUse`
 | 系统 | Windows 11 x64 |
 | 官方主包 | `OpenAI.Codex_26.1021.3705.0_x64__2p2nqsd0c76g0` |
 | 官方来源 | 有效 Store 签名 MSIX，发布者及四个关键文件 SHA256 匹配 `native-integration/compatibility.json` |
-| 本地附加包 | `Local.Sandrone.CodexNativeTheme`，`0.2.0.0` |
-| 构建依赖 | x64 GCC、Windows SDK MakeAppx、PowerShell；不需要 npm 或另带 Node 运行时 |
+| 本地附加包 | `Local.Sandrone.CodexNativeTheme`，`0.3.5.0` |
+| 构建依赖 | x64 GCC、Windows SDK MakeAppx、PowerShell、Node.js 24+；视频需要重新生成时另需 Playwright、Chromium/Chrome/Edge、FFmpeg/FFprobe |
+| 使用已构建包 | 安装和启动不需要 Node、浏览器或 FFmpeg；播放器使用随包视频 |
 | 部署 | 本机开发测试用 unsigned MSIX；可能需要管理员权限，不自动提权 |
 
 本地 unsigned MSIX 用于测试，不是公开发行签名方案。Microsoft 要求正式分发采用签名；这里不导入证书、不放宽系统防护、不更改用户或机器执行策略。菜单调用的 PowerShell 仅设置该子进程的脚本执行策略，组织强制策略仍然优先。[Microsoft unsigned MSIX 说明](https://learn.microsoft.com/en-us/windows/msix/package/unsigned-package)
@@ -35,7 +38,9 @@ Windows 部署使用 `RemovePackageAsync` 的 `DeferRemovalWhenPackagesAreInUse`
 .\native-integration\build.ps1 -OfficialMsix 'D:\Downloads\ChatGPT-26.1021.3705.0-x64.msix'
 ```
 
-可通过 `-GccPath`、`-MakeAppxPath` 指定工具；默认从 PATH 和 Windows SDK 安装目录查找。`-OutputDirectory` 必须是尚不存在的目录，默认在 `dist/native-addon/` 中生成独立构建目录。构建只生成文件，不注册、启动或卸载任何应用。
+可通过 `-GccPath`、`-MakeAppxPath`、`-NodePath` 指定工具；默认从 PATH 和 Windows SDK 安装目录查找。`-OutputDirectory` 必须是尚不存在的目录，默认在 `dist/native-addon/` 中生成独立构建目录。构建只生成文件，不注册、启动或卸载任何应用。
+
+构建先核对动画脚本、时间轴、源素材与现有视频的 SHA256；源版本改变或产物不完整时自动重新渲染，`-RebuildStartupMedia` 可强制重做。新视频完整校验后才替换仓库中的发布产物并更新来源清单，失败则停止构建。打包前再次比对实际复制的源素材、视频与构建回执中的来源指纹，防止混入其他版本。渲染依赖和独立检查命令见 [启动进度说明](STARTUP-READINESS.zh-CN.md#构建时生成开屏)。
 
 构建输出包含 MSIX、`bundle.json`、安装/卸载脚本及日志。MSIX 内自包含 runtime、原主题素材与管理脚本；不依赖作者安装路径或仓库路径。原官方 updater 字节从验证后的官方 MSIX 取出，仅进入本地生成物，不提交到 Git。原程序、归档和原模块的物理安装文件不被改写。
 
@@ -57,7 +62,7 @@ MSIX 将 `windows-updater.node` 映射到转接模块，同时提供原模块的
 需要手动恢复时，先正常退出 Codex，再从构建输出目录执行：
 
 ```powershell
-.\uninstall.ps1 -Action Remove -StateDirectory '<Codex userData>\sandrone-theme' -ExpectedPackageFullName 'Local.Sandrone.CodexNativeTheme_0.2.0.0_x64__vt89pjxv8jer8'
+.\uninstall.ps1 -Action Remove -StateDirectory '<Codex userData>\sandrone-theme' -ExpectedPackageFullName 'Local.Sandrone.CodexNativeTheme_0.3.5.0_x64__vt89pjxv8jer8'
 ```
 
 `Status` 查询状态，`Cancel` 取消尚未提交给 Windows 的请求。`Schedule` 安排退出后卸载；`Run` 只供 worker 使用。各操作只接受固定包名前缀、x64 架构及此本地开发发布者的精确完整包名。卸载请求 24 小时未执行会过期并报告错误，进程中止也不会伪报成功。
@@ -83,6 +88,6 @@ node --test tests/native-manager.test.mjs
 
 ## 文件与官方依据
 
-构建器和兼容矩阵在 `native-integration/`；主题交互在其 `runtime/`。本 PR 不改变原开屏资源策略，开屏性能优化由独立改动提供。
+构建器和兼容矩阵在 `native-integration/`；主题交互在其 `runtime/`。0.3.0.0 的原生路径使用新的预渲染播放器；旧 CDP 启动器继续使用原有分块媒体缓存接口。
 
 该机制基于 Microsoft 的 [modification packages](https://learn.microsoft.com/en-us/windows/msix/modification-packages)。普通插件管理、原生主题切换和 Windows 附加包注册是不同层次的能力；文档和 UI 不把它们混称为官方插件。

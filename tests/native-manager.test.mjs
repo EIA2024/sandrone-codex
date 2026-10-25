@@ -126,11 +126,11 @@ test('preferences survive a process reload and ignore malformed/unrelated fields
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sandrone-preferences-'));
   try {
     writePreferences(directory, { enabled: false, openingOnLaunch: false, secret: 'not written' });
-    assert.deepEqual(readPreferences(directory), { schema: 1, enabled: false, openingOnLaunch: false });
+    assert.deepEqual(readPreferences(directory), { schema: 1, enabled: false, openingOnLaunch: false, autoEnterOnReady: true });
     const saved = fs.readFileSync(path.join(directory, 'settings.json'), 'utf8');
     assert.equal(saved.includes('secret'), false);
     fs.writeFileSync(path.join(directory, 'settings.json'), '{ broken');
-    assert.deepEqual(readPreferences(directory), { schema: 1, enabled: true, openingOnLaunch: true });
+    assert.deepEqual(readPreferences(directory), { schema: 1, enabled: true, openingOnLaunch: true, autoEnterOnReady: true });
     fs.writeFileSync(path.join(directory, 'settings.json'), JSON.stringify({ schema: 1, enabled: 'false', openingOnLaunch: [] }));
     assert.equal(readPreferences(directory).enabled, true);
   } finally {

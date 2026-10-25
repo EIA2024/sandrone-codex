@@ -70,6 +70,26 @@
     {
       "file": "assets/ornaments/burst.png",
       "sha256": "9c97f6d957d11d4b4568b815b7cbcf92b6d7aba01adbf64b950439ce43e84300"
+    },
+    {
+      "file": "assets/motion/startup.json",
+      "sha256": "514f88f287ff2f66eb7ef6c0db65b9f8ac50ab9ab9fc9965489bf588e9c64561"
+    },
+    {
+      "file": "assets/motion/sandrone-startup-intro.mp4",
+      "sha256": "f94076ea5c3d318ba4dc607fcb744f221bfc1a7822e7e14c1e8d994d7d0f7baa"
+    },
+    {
+      "file": "assets/motion/sandrone-startup-idle.mp4",
+      "sha256": "fea6b1151b04736ca5d26ed5feae86bb397a81d6b5e72c9b1e694ad3aba02668"
+    },
+    {
+      "file": "assets/motion/sandrone-startup-poster.jpg",
+      "sha256": "b6fa21da95afbf39bb681eca27d882047e29492a7f004901f1a023c991516914"
+    },
+    {
+      "file": "assets/motion/sandrone-startup-still.jpg",
+      "sha256": "fa6cdbb5691ed928e6540cd532408913014018f3c23a5a00be34af53c89c91d3"
     }
   ]
 }
