@@ -75,9 +75,9 @@ node --test tests/native-manager.test.mjs
 - 原生 bridge 测试实际编译 DLL，并在 Node N-API fixture 中验证原 exports、主题加载失败、原模块异常与原模块缺失。它不能代替真实 Electron updater 或官方更新流程测试。
 - 构建包检查核对 manifest、原模块字节、runtime/资源自包含以及无个人路径和运行状态。
 - `tests/native-controls.browser.mjs` 在独立 Chromium 中验证菜单与键盘交互；`tests/native-integration.browser.mjs` 将真实 runtime 接到 Electron API 适配器，验证延迟主界面、菜单动作、主题切换及媒体生命周期。前者接受 `BROWSER_EXECUTABLE`，后者接受 `CHROMIUM_EXECUTABLE`；两者均可用 `PLAYWRIGHT_MODULE` 指定已有 Playwright。集成测试可通过 `SANDRONE_THEME_SOURCE` 指向另一个 checkout，检查与独立开屏优化的组合。适配器验证不代表真实 Electron/AppX 验收。
-- 本轮整理版本已完成本地编译和无注册打包；尚未替换现有用户安装，未验证新自包含包的真实启动、菜单卸载与升级。旧 `0.1.0` 的本机安装记录只证明旧实现，不能充当这个版本的验收。
+- 2026-10-25 在 Windows 11 x64（build 26200）、官方 Codex `26.1021.3705.0` 上，将与开屏优化组合的 `0.2.0.0` 包实际安装并通过普通入口启动。确认转接与原 updater 模块加载、主题关闭/启用、菜单及标题栏重播、启动播放偏好写入磁盘，以及安排卸载后取消。取消后 worker 已退出、包仍注册，主题恢复启用。安装预检发现的 Windows PowerShell 5.1 `-File` 默认目录问题已修复，并验证旧实现失败、新实现通过。
 
-合并/发行前应补齐真实普通入口加载、启用/禁用、持久化、退出后卸载/取消、官方程序恢复启动和主包升级失配测试。Windows 版本与应用版本应随验收记录保存。
+上述实机检查没有执行完整卸载。合并/发行前仍应补齐退出后真正移除、官方程序恢复启动、跨重启偏好读取及主包升级失配测试；播放帧率和不同 GPU/驱动环境也未测量。偏好已落盘不等于完成跨重启验证。
 
 ## 文件与官方依据
 

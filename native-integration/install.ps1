@@ -1,6 +1,7 @@
 [CmdletBinding()]
-param([string]$BundleDirectory = $PSScriptRoot, [switch]$VerifyOnly)
+param([string]$BundleDirectory, [switch]$VerifyOnly)
 $ErrorActionPreference = 'Stop'
+if (!$BundleDirectory) { $BundleDirectory = $PSScriptRoot }
 . (Join-Path $PSScriptRoot 'package-common.ps1')
 $bundle = Get-Content -LiteralPath (Join-Path $BundleDirectory 'bundle.json') -Raw | ConvertFrom-Json
 if ($bundle.schema -ne 1 -or $bundle.addonName -cne 'Local.Sandrone.CodexNativeTheme' -or

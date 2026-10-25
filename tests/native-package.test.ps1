@@ -15,6 +15,19 @@ function Get-SandroneRunningHosts { $script:running }
 function Invoke-SandroneDeferredRemoval([string]$Identity) { $script:removed += $Identity; if (!$script:defer) { $script:installed = $false } }
 function Start-Process { param($FilePath, $ArgumentList, $WindowStyle, [switch]$PassThru); $script:launches++; Check ($WindowStyle -eq 'Hidden') 'Worker must be hidden'; Check ($ArgumentList -contains '-EncodedCommand') 'Paths must be encoded without command-line interpolation'; return Get-Process -Id $PID }
 try {
+    # Exercise the documented standalone -File entry point. In Windows
+    # PowerShell 5.1, $PSScriptRoot is not available in parameter defaults.
+    $installerFixture = Join-Path $temporary 'installer'
+    $null = New-Item -ItemType Directory -Path $installerFixture
+    Copy-Item (Join-Path $repo 'native-integration\install.ps1') $installerFixture
+    Copy-Item (Join-Path $repo 'native-integration\package-common.ps1') $installerFixture
+    [IO.File]::WriteAllText((Join-Path $installerFixture 'bundle.json'), '{"schema":0}')
+    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $priorErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { $installerOutput = (& $powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $installerFixture 'install.ps1') -VerifyOnly 2>&1 | Out-String) }
+    finally { $ErrorActionPreference = $priorErrorAction }
+    Check ($installerOutput -match 'Unsupported native theme bundle identity') 'Standalone installer must resolve its adjacent bundle before validating identity'
     $compatibility = Get-Content -LiteralPath (Join-Path $repo 'native-integration\compatibility.json') -Raw | ConvertFrom-Json
     $target = $compatibility.targets[0]
     $official = [pscustomobject]@{Name=$target.name;Version=$target.version;Publisher=$target.publisher;ProcessorArchitecture=$target.architecture}
