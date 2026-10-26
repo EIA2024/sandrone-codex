@@ -69,6 +69,10 @@
 - 本地编译启动器未做商业签名；核对发布文件 SHA256，不要关闭系统防护。
 - 使用后的 profile/、state/、machine.json 不应重新打包或提交。
 
+## 社区衍生项目
+
+- [Custom Codex UI](https://github.com/WyEhNf/customed_codexui)：基于本项目的 UI 与同窗开屏实现，扩展为九角色主题与内置角色切换。衍生项目的 README 已保留对本项目的来源说明与致谢；由衍生项目独立维护。
+
 ## 许可与鸣谢
 
 **项目代码：MIT。** 上游 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 使用 MIT，保留其许可证与来源记录。
