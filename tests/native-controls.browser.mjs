@@ -1,0 +1,48 @@
+// Optional real-browser UI check. Use an installed Playwright module and browser;
+// it never connects to the user's Codex instance or removes a Windows package.
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { installControls } = require('../native-integration/runtime/controls.cjs');
+const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {}) });
+try {
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  await page.setContent('<!doctype html><html><body><button id="outside">Outside</button><main>Official app fixture</main></body></html>');
+  const actions = [];
+  page.on('console', message => { if (message.text().startsWith('test:')) actions.push(message.text().slice(5)); });
+  const install = async state => page.evaluate(`(${installControls.toString()})('test:',${JSON.stringify(state)})`);
+  await install({ enabled: true, openingOnLaunch: true, uninstallStatus: 'idle', error: '' });
+  const host = page.locator('#sandrone-native-controls');
+  const trigger = host.getByRole('button', { name: '主题管理', exact: true });
+  await trigger.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForFunction(() => document.getElementById('sandrone-native-controls').shadowRoot.activeElement?.dataset.action === 'disable');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.getElementById('sandrone-native-controls').shadowRoot.activeElement.dataset.action), 'enable');
+  await page.keyboard.press('Escape');
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+  await trigger.click();
+  await host.getByRole('menuitemradio', { name: '原生界面' }).click();
+  assert.ok(actions.includes('disable'));
+  await install({ enabled: false, openingOnLaunch: true, uninstallStatus: 'scheduled', error: '' });
+  await trigger.click();
+  assert.equal(await host.getByRole('menuitemradio', { name: '桑多涅主题' }).isDisabled(), true);
+  assert.equal(await host.getByRole('menuitem', { name: '重播开屏' }).isDisabled(), true);
+  await host.getByRole('menuitem', { name: '取消待执行的卸载' }).click();
+  assert.ok(actions.includes('cancel-uninstall'));
+  await install({ enabled: false, openingOnLaunch: true, uninstallStatus: 'cancelled', error: '<script>not markup</script>' });
+  await trigger.click();
+  assert.equal(await host.getByRole('alert').textContent(), '<script>not markup</script>');
+  assert.equal(await host.locator('script').count(), 0);
+  await page.locator('#outside').click();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+  await page.setViewportSize({ width: 540, height: 600 });
+  const bounds = await host.boundingBox();
+  assert.ok(bounds.y >= 36, 'compact layout does not cover window caption controls');
+  assert.equal(await page.locator('#sandrone-native-controls').count(), 1, 'updating preferences does not duplicate controls');
+  await page.evaluate(() => window.__SANDRONE_NATIVE_CONTROLS__.dispose());
+  assert.equal(await page.locator('#sandrone-native-controls').count(), 0);
+  assert.equal(await page.evaluate(() => typeof window.sandroneReplayOpening), 'undefined');
+  console.log('PASS: real Chromium theme menu, keyboard navigation, disabled actions, cancellation, error escaping and cleanup');
+} finally { await browser.close(); }
