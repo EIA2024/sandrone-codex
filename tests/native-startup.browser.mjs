@@ -51,6 +51,20 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.dreamSkin === 'active');
   await manager.queue;
   assert.equal(await page.locator('#sandrone-startup').getAttribute('data-ready'), 'false', 'real service lifecycle still missing');
+  ipcMain.emit('sandrone:startup-action', event, { action: 'host', token: config.token, type: 'codex-app-server-connection-changed', hostId: 'local', state: 'error' });
+  const nativeRecovery = page.locator('#sandrone-startup').getByRole('button', { name: '使用原生界面', exact: true });
+  await nativeRecovery.waitFor({ state: 'visible' });
+  // Real user interaction must cross preload IPC and reach the theme manager;
+  // dispatching disable directly would miss a cover blocking the page menu.
+  await nativeRecovery.click();
+  await page.waitForFunction(() => !document.getElementById('sandrone-startup'));
+  await manager.queue;
+  assert.equal(manager.preferences.enabled, false);
+  assert.equal(JSON.parse(await fs.readFile(path.join(temporary, 'user-data/sandrone-theme/settings.json'))).enabled, false);
+  assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-dream-skin')), false);
+  await page.getByRole('textbox', { name: 'Message' }).click();
+  await manager.dispatch('enable', win); await manager.dispatch('replay', win);
+  await page.waitForFunction(() => Boolean(document.getElementById('sandrone-startup')));
   await manager.dispatch('auto-enter');
   for (const value of [{ type: 'codex-app-server-initialized', hostId: 'local' }, { type: 'codex-app-server-connection-changed', hostId: 'local', state: 'connected' }]) ipcMain.emit('sandrone:startup-action', event, { action: 'host', token: config.token, ...value });
   await page.waitForFunction(() => document.getElementById('sandrone-startup')?.dataset.ready === 'true');
@@ -67,7 +81,7 @@ try {
   assert.equal(preferences.autoEnterOnReady, false);
   assert.deepEqual(errors, []); assert.deepEqual(logs, []);
   assert.equal(manager.error, '');
-  console.log(JSON.stringify({ pass: true, scope: 'real native integration and Chromium; Electron IPC adapter, not packaged activation', checks: ['early-overlay-before-shell', 'actual-theme-installation', 'service-gated-readiness', 'entry-and-replay', 'disable-cancellation', 'enable-recovery', 'persistent-manual-mode'] }));
+  console.log(JSON.stringify({ pass: true, scope: 'real native integration and Chromium; Electron IPC adapter, not packaged activation', checks: ['early-overlay-before-shell', 'actual-theme-installation', 'service-gated-readiness', 'recovery-button-click-through-ipc', 'recovery-persists-disable-and-restores-editor', 'entry-and-replay', 'disable-cancellation', 'enable-recovery', 'persistent-manual-mode'] }));
 } finally {
   win?.close(); await browser?.close();
   await fs.rm(temporary, { recursive: true, force: true });

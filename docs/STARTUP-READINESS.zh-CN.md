@@ -1,6 +1,6 @@
 # 原生启动画面与真实阶段进度
 
-当前原生附加包版本为 0.3.5.0，依赖原生集成 PR1；0.3.1.0 的实机结果单独记录在下文。仍只针对 Windows 11 x64 和 Codex 26.1021.3705.0；便携 CDP 启动器保留原播放器。
+当前源码的原生附加包版本为 0.3.6.0，包含维护侧补充的错误恢复入口；该补充只完成独立浏览器与 IPC 适配器回归，未重新构建或实机安装。0.3.5.0 及更早版本的验证范围单独记录在下文。仍只针对 Windows 11 x64 和 Codex 26.1021.3705.0；便携 CDP 启动器保留原播放器。
 
 ## 启动与进入
 
@@ -18,7 +18,9 @@
 
 每项真实完成后推进一格，不用计时器伪造进度，也不显示精确耗时百分比。服务断连或主题检查失效会撤销就绪。本机服务就绪不代表远程聊天主机、所有云端数据或每项第三方插件已完成加载。
 
-开屏保留真实进度和进入提示，不显示“重试检查”和“切回原生界面”按钮；持续检测就绪状态，不自动满格或提前揭开工作区。仅需要登录时显示“继续登录”，暂时让出画面，工作区出现后重新遮挡并检查。主题停用仍可通过原生菜单操作。减少动态效果和坏媒体使用静态图，仍等待真实就绪，不等待无法完成的视频。
+正常加载和就绪后等待手动进入时，开屏只保留真实进度和进入提示。服务连接失败、主题图片失败或检查超过 30 秒仍未就绪时，在遮罩内显示“重试检查”和“使用原生界面”；按钮可以通过鼠标和 Tab/Enter 操作，不依赖被遮罩挡住的页面菜单。“使用原生界面”调用现有主题禁用流程，保存关闭偏好并清理开屏和媒体，让原生工作区继续显示其实际状态，不把失败检查伪装为就绪。原生加载器仍保留，之后可从主题菜单重新启用；这不是卸载附加包。
+
+需要登录时显示“继续登录”和“使用原生界面”；继续登录暂时让出画面，工作区出现后重新遮挡并检查。减少动态效果和坏媒体使用静态图，仍等待真实就绪，不等待无法完成的视频。
 
 ## 预渲染与资源
 
@@ -64,11 +66,14 @@ $env:PLAYWRIGHT_MODULE = '<absolute path to installed playwright>'
 $env:CHROMIUM_EXECUTABLE = '<absolute path to installed Chrome>'
 node tests/startup.browser.mjs
 node tests/native-startup.browser.mjs
+node tests/startup-recovery.browser.mjs
 node tests/project-colors.browser.mjs
 powershell.exe -NoProfile -File tests/native-package.test.ps1
 powershell.exe -NoProfile -File tests/native-package-bridge.test.ps1
 powershell.exe -NoProfile -File tests/native-package-bundle.test.ps1 -BundleDirectory '<built bundle>'
 ```
+
+错误恢复回归使用正式播放器与菜单函数，在工作区服务失败、主题图片失败、检查超时、登录和就绪手动模式中验证按钮是否可见，并通过真实点击与键盘触发。原生集成适配器还验证从按钮点击经过 preload IPC 到主题管理器，最终关闭主题、保存偏好和恢复输入框访问。旧实现无法显示恢复入口，新实现通过；这些检查不代表新的 MSIX 实机验收，也不改变历史掉帧数据。
 
 0.3.0.0 于 2026-10-25 安装并从普通入口启动，但用户确认启动与重播都不显示动画。日志只到 `startup-document-created`，未出现 `startup-screen-mounted`。定位发现同步 IPC 处理器先设置 `event.returnValue = null`，再写入配置；真实 Electron 在赋值时发送回复，首个空回复使播放器跳过初始化。旧浏览器适配器用普通可覆盖属性模拟回复，未覆盖该契约。
 

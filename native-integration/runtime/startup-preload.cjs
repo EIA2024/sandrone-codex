@@ -32,11 +32,18 @@ function installStartupScreen(config, send) {
     const progress = shadow.querySelector('progress');
     progress.value = count; progress.setAttribute('aria-valuetext', state.status);
     shadow.querySelector('.status').textContent = state.status;
+    // The cover sits above the page's theme menu. Recovery must live inside it
+    // so a failed check cannot hide the only way back to the native workspace.
+    const needsRecovery = !state.ready && Boolean(state.recovery || state.login);
+    const recoveryFocus = shadow.activeElement?.closest('.recovery') ? shadow.activeElement : null;
     shadow.querySelector('.hint').textContent = state.ready
       ? preferences.autoEnterOnReady ? introDone ? '正在进入工作区' : '工作区已就绪 · 片头播放后自动进入' : '双击进入 · 或连续按两次空格进入'
-      : '正在准备工作区，完成后可以进入';
-    shadow.querySelector('.recovery').hidden = !state.login;
+      : needsRecovery ? state.login ? '请先完成登录，也可使用原生界面' : '加载尚未就绪，可重试检查或使用原生界面' : '正在准备工作区，完成后可以进入';
+    shadow.querySelector('.recovery').hidden = !needsRecovery;
     shadow.querySelector('[data-action="login"]').hidden = !state.login;
+    shadow.querySelector('[data-action="retry"]').hidden = !needsRecovery || Boolean(state.login);
+    shadow.querySelector('[data-action="native"]').hidden = !needsRecovery;
+    if (recoveryFocus?.closest('[hidden]')) shadow.querySelector('.screen').focus({ preventScroll: true });
     if (preferences.autoEnterOnReady && state.ready && introDone) requestEntry('auto');
   }
   function requestEntry(reason) {
@@ -77,7 +84,7 @@ function installStartupScreen(config, send) {
       .recovery{margin-top:10px}button{color:#eee9dc;background:#263343;border:1px solid #766246;padding:7px 12px;margin:4px;cursor:pointer}
       .screen.fading{opacity:0;transition:opacity .25s ease}.screen.fading *{pointer-events:none}
       [hidden]{display:none!important}
-    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button></div></div></div>`;
+    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button><button data-action="retry" hidden>重试检查</button><button data-action="native" hidden>使用原生界面</button></div></div></div>`;
     shadow.querySelector('img').src = introDone ? config.media.still || config.media.poster : config.media.poster;
     const screen = shadow.querySelector('.screen');
     screen.addEventListener('dblclick', event => {
