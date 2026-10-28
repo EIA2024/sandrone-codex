@@ -13,25 +13,35 @@ const initialized = (hosts, id = 'local') => {
   updateHost(hosts, { type: 'codex-app-server-connection-changed', hostId: id, state: 'connected' });
 };
 
-test('only completed checks advance progress; elapsed time cannot complete startup', () => {
+test('only observed view checks grant entry; optional service evidence is reported separately', () => {
   const hosts = new Map();
   assert.deepEqual(startupState({}, hosts, false, 120000).steps, [true, false, false, false, false]);
   initialized(hosts, 'unrelated-remote');
-  assert.equal(startupState(good, hosts, true, 0).ready, false);
+  assert.equal(startupState(good, hosts, true, 0).ready, true);
+  assert.equal(startupState(good, hosts, true, 0).serviceStatus, 'unknown');
   initialized(hosts);
   assert.equal(startupState(good, hosts, false, 0).ready, false);
   for (const key of ['workspace', 'structure', 'theme']) assert.equal(startupState({ ...good, [key]: false }, hosts, true, 0).ready, false);
   assert.equal(startupState(good, hosts, true, 0).ready, true);
 });
 
-test('disconnect revokes readiness; reconnect requires a new initialization', () => {
+test('service disconnect does not block a usable view; reconnect still requires initialization for service status', () => {
   const hosts = new Map(); initialized(hosts);
   updateHost(hosts, { type: 'codex-app-server-connection-changed', hostId: 'local', state: 'error' });
-  assert.equal(startupState(good, hosts, true, 0).ready, false);
-  assert.equal(startupState(good, hosts, true, 0).recovery, true);
+  assert.equal(startupState(good, hosts, true, 0).ready, true);
+  assert.equal(startupState(good, hosts, true, 0).serviceStatus, 'error');
   updateHost(hosts, { type: 'codex-app-server-connection-changed', hostId: 'local', state: 'connected' });
-  assert.equal(startupState(good, hosts, true, 0).ready, false);
-  initialized(hosts); assert.equal(startupState(good, hosts, true, 0).ready, true);
+  assert.equal(startupState(good, hosts, true, 0).serviceStatus, 'disconnected');
+  initialized(hosts); assert.equal(startupState(good, hosts, true, 0).serviceStatus, 'connected');
+});
+
+test('timeout and broken images degrade without falsely completing readiness', () => {
+  assert.equal(startupState({}, new Map(), false, 29999).degraded, false);
+  const timedOut = startupState({}, new Map(), false, 30000);
+  assert.equal(timedOut.degraded, true);
+  assert.equal(timedOut.ready, false);
+  assert.equal(startupState(good, new Map(), true, 60000).degraded, false);
+  assert.equal(startupState({ ...good, theme: false, imageError: true }, new Map(), false, 0).degraded, true);
 });
 
 test('legacy preferences migrate by default and manual mode persists', () => {

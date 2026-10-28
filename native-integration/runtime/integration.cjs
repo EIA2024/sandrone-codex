@@ -8,10 +8,11 @@ const { isShellUrl, readAction } = require('./boundary.cjs');
 const { installControls } = require('./controls.cjs');
 const { createManagement } = require('./management.cjs');
 const { createStartup } = require('./startup.cjs');
+const { hostContract, inspectShell } = require('./host-adapter.cjs');
 
 const call = (fn, ...args) => `(${fn.toString()})(${args.map(value => JSON.stringify(value)).join(',')})`;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const shellProbe = `Boolean(document.querySelector('aside.app-shell-left-panel') && document.querySelector('main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])'))`;
+const shellProbe = call(inspectShell, hostContract);
 
 // The shell may appear long after did-finish-load (login or slow startup).
 // Back off after the first 20 seconds and stop on navigation/window closure.
@@ -35,9 +36,10 @@ function startIntegration(electron, installationRoot, installation) {
   if (fs.existsSync(logFile) && fs.statSync(logFile).size > 1024 * 1024) {
     fs.renameSync(logFile, logFile + '.previous');
   }
-  const log = (event, error) => {
-    try { fs.appendFileSync(logFile, JSON.stringify({ at: new Date().toISOString(), event, message: error?.message }) + '\n'); } catch {}
+  const log = (event, error, details = {}) => {
+    try { fs.appendFileSync(logFile, JSON.stringify({ at: new Date().toISOString(), event, message: error?.message, ...details }) + '\n'); } catch {}
   };
+  log('runtime-loaded', null, { addonPackageFullName: installation.addonPackageFullName, targetPackage: installation.targetPackage });
   const windows = new Map();
   let startupOpeningShown = false;
   let earlyStartup;
@@ -49,7 +51,6 @@ function startIntegration(electron, installationRoot, installation) {
   ]).then(([injector, renderer, openingClient]) => ({ injector, renderer, openingClient }));
   const skin = () => skinPromise ??= modules().then(async ({ injector }) => ({
     loaded: await injector.loadPayload(path.join(themeRoot, 'themes/sandrone')),
-    css: await fs.promises.readFile(path.join(themeRoot, 'engine/native-ui.css'), 'utf8'),
   })).catch(error => { skinPromise = null; throw error; });
   const assets = () => assetsPromise ??= load('engine/assets.mjs').then(module => module.openingAssets())
     .catch(error => { assetsPromise = null; throw error; });
@@ -82,7 +83,7 @@ function startIntegration(electron, installationRoot, installation) {
     replay: async win => { if (eligible(win)) await play(windows.get(win.id), true); },
     updateControls: async state => {
       earlyStartup?.update(state);
-      await Promise.allSettled(all().map(entry => evaluate(entry)(call(installControls, entry.prefix, state))));
+      await Promise.allSettled(all().map(entry => evaluate(entry)(call(installControls, entry.prefix, state, hostContract))));
     },
     confirmUninstall: async win => {
       const result = await dialog.showMessageBox(win, {
@@ -119,14 +120,37 @@ function startIntegration(electron, installationRoot, installation) {
       }
       return;
     }
-    const { loaded, css } = await skin();
-    if (!eligible(entry.win) || generation !== entry.generation || !manager.preferences.enabled) return;
     const run = evaluate(entry, generation);
-    await run('window.__CODEX_DREAM_SKIN_DISABLED__ = false');
-    await run(loaded.payload);
-    await run(call(renderer.installNativeUi, css));
-    if (earlyStartup) earlyStartup.setTheme(entry.win, loaded);
-    else await run(call(renderer.setStartupPhase, 'ready'));
+    let loaded, payloadApplied = false, nativeApplied = false;
+    try {
+      ({ loaded } = await skin());
+      if (!eligible(entry.win) || generation !== entry.generation || !manager.preferences.enabled) return;
+      await run('window.__CODEX_DREAM_SKIN_DISABLED__ = false');
+      await run(loaded.payload); payloadApplied = true;
+    } catch (error) {
+      if (error.code === 'SANDRONE_WINDOW_CHANGED') return;
+      reportDegraded(entry, 'appearance', error);
+    }
+    try {
+      if (!eligible(entry.win) || generation !== entry.generation || !manager.preferences.enabled) return;
+      const css = await fs.promises.readFile(path.join(themeRoot, 'engine/native-ui.css'), 'utf8');
+      await run(call(renderer.installNativeUi, css)); nativeApplied = true;
+    } catch (error) {
+      if (error.code === 'SANDRONE_WINDOW_CHANGED') return;
+      reportDegraded(entry, 'native-controls', error);
+    }
+    if (payloadApplied && nativeApplied) {
+      entry.degraded.clear();
+      manager.warning = [...windows.values()].some(value => value.degraded.size) ? '部分主题效果暂不可用，已保留可用功能。' : '';
+      if (earlyStartup) earlyStartup.setTheme(entry.win, loaded);
+      else await run(call(renderer.setStartupPhase, 'ready'));
+    } else earlyStartup?.degrade(entry.win);
+  }
+
+  function reportDegraded(entry, feature, error) {
+    if (!entry.degraded.has(feature)) log('feature-degraded', error, { feature });
+    entry.degraded.add(feature);
+    manager.warning = '部分主题效果暂不可用，已保留可用功能。';
   }
 
   async function play(entry, replay = false) {
@@ -151,6 +175,9 @@ function startIntegration(electron, installationRoot, installation) {
   async function loaded(entry) {
     invalidate(entry);
     const generation = entry.generation;
+    if (!alive(entry.win)) return;
+    entry.eligible = true;
+    await evaluate(entry, generation)(call(installControls, entry.prefix, manager.snapshot(), hostContract));
     const ready = await waitForShell(
       () => entry.win.webContents.executeJavaScript(shellProbe),
       () => alive(entry.win) && entry.generation === generation,
@@ -159,7 +186,7 @@ function startIntegration(electron, installationRoot, installation) {
       entry.eligible = true;
       return manager.enqueue(async () => {
         if (!eligible(entry.win) || entry.generation !== generation) return;
-        await evaluate(entry, generation)(call(installControls, entry.prefix, manager.snapshot()));
+        await evaluate(entry, generation)(call(installControls, entry.prefix, manager.snapshot(), hostContract));
         try {
           await apply(entry, manager.preferences.enabled);
           if (entry.generation === generation && manager.preferences.enabled && manager.preferences.openingOnLaunch && !startupOpeningShown) {
@@ -180,7 +207,7 @@ function startIntegration(electron, installationRoot, installation) {
 
   function attach(win) {
     if (windows.has(win.id)) return;
-    const entry = { win, eligible: false, generation: 0, prefix: '' };
+    const entry = { win, eligible: false, generation: 0, prefix: '', degraded: new Set() };
     windows.set(win.id, entry);
     win.webContents.on('console-message', details => {
       if (!eligible(win)) return;
@@ -215,6 +242,11 @@ function startIntegration(electron, installationRoot, installation) {
   } catch {}
   earlyStartup = createStartup(electron, {
     themeRoot, log, preferences: () => manager.snapshot(),
+    onDegraded: (wc, reason) => {
+      const entry = [...windows.values()].find(value => value.win.webContents === wc);
+      if (entry) reportDegraded(entry, 'opening', { message: reason });
+      void manager.operations.updateControls(manager.snapshot());
+    },
     disable: () => manager.dispatch('disable'),
     retry: wc => {
       const entry = [...windows.values()].find(entry => entry.win.webContents === wc);

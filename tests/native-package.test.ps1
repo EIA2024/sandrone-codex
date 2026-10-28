@@ -29,12 +29,18 @@ try {
     finally { $ErrorActionPreference = $priorErrorAction }
     Check ($installerOutput -match 'Unsupported native theme bundle identity') 'Standalone installer must resolve its adjacent bundle before validating identity'
     $compatibility = Get-Content -LiteralPath (Join-Path $repo 'native-integration\compatibility.json') -Raw | ConvertFrom-Json
-    $target = $compatibility.targets[0]
-    $official = [pscustomobject]@{Name=$target.name;Version=$target.version;Publisher=$target.publisher;ProcessorArchitecture=$target.architecture}
-    Check ((Get-SandroneTarget $compatibility $official).packageFullName -eq $target.packageFullName) 'Supported exact official identity must match'
-    $official.Version = '99.0.0.0'; Reject { Get-SandroneTarget $compatibility $official } 'Unknown official version must not auto-enable the native module'
+    foreach ($version in @('26.1021.3705.0', '26.1023.6123.0', '27.1.1.0')) {
+        $supported = [pscustomobject]@{ Name='OpenAI.Codex'; Version=$version; Publisher='CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B'; ProcessorArchitecture='x64' }
+        $matched = Get-SandroneTarget $compatibility $supported
+        Check ($matched.packageFullName -ceq ('OpenAI.Codex_' + $version + '_x64__2p2nqsd0c76g0')) 'Version changes must generate an exact target without editing a whitelist'
+        Check ($matched.requiredFiles -contains 'app/resources/native/windows-updater.node') 'Each target must verify its own original updater'
+        $supported.ProcessorArchitecture = 'arm64'
+        Reject { Get-SandroneTarget $compatibility $supported } 'An unverified architecture must not reuse x64 compatibility'
+        $supported.ProcessorArchitecture = 'x64'; $supported.Publisher = 'CN=Other'
+        Reject { Get-SandroneTarget $compatibility $supported } 'An unverified publisher must not reuse official compatibility'
+    }
+    foreach ($version in @('1.2.3', '1.2.3.65536', '1.2.3.-1', '../26.1.1.0', '01.2.3.4')) { Reject { Assert-SandroneVersion $version } 'Invalid versions cannot form package paths' }
     foreach ($relative in @('../profile', 'C:\private', 'asset/../../outside', 'a:b')) { Reject { Assert-SandroneRelativePath $relative } 'Package path escape must fail' }
-    foreach ($property in $target.files.PSObject.Properties) { Check ($property.Value -cmatch '^[a-f0-9]{64}$') 'Compatibility hashes must be SHA256' }
     Reject { Assert-SandroneAddonIdentity 'OpenAI.Codex_26.1021.3705.0_x64__2p2nqsd0c76g0' } 'Cannot uninstall official Codex'
     Reject { Assert-SandroneAddonIdentity 'Local.Sandrone.CodexNativeTheme_*' } 'Cannot uninstall by wildcard'
     $script:running = @(100,200)

@@ -6,11 +6,12 @@ class ThemeManager {
     this.operations = operations;
     this.uninstallStatus = 'idle';
     this.error = '';
+    this.warning = '';
     this.queue = Promise.resolve();
   }
 
   snapshot() {
-    return { ...this.preferences, uninstallStatus: this.uninstallStatus, error: this.error };
+    return { ...this.preferences, uninstallStatus: this.uninstallStatus, error: this.error, warning: this.warning };
   }
 
   enqueue(operation) {

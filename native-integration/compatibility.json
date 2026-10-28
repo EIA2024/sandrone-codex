@@ -1,22 +1,23 @@
 {
-  "schema": 1,
+  "schema": 2,
   "addonName": "Local.Sandrone.CodexNativeTheme",
   "addonPublisher": "CN=SandroneLocal, OID.2.25.311729368913984317654407730594956997722=1",
   "addonPublisherId": "vt89pjxv8jer8",
-  "addonVersion": "0.3.6.0",
-  "targets": [
-    {
-      "name": "OpenAI.Codex",
-      "version": "26.1021.3705.0",
-      "architecture": "x64",
-      "publisher": "CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B",
-      "packageFullName": "OpenAI.Codex_26.1021.3705.0_x64__2p2nqsd0c76g0",
-      "files": {
-        "app/ChatGPT.exe": "c5a6ea0f6d99d696e9976c0ecefb6b8410a7dd5b17d96fb69a72c83a8192b649",
-        "app/resources/app.asar": "04862a659c6a90fc50514d8c0b8016709d97dece58839726c57495ed72f1d9f0",
-        "app/resources/owl-app.ini": "778fb72e316469f44b419c59e22b722cbef16e36b7b88a5002f1c6d10f6d256d",
-        "app/resources/native/windows-updater.node": "7675cf5615d7e32e5334763e8f235ab199ed9a7260673bcdf7bb2c38d62810ff"
-      }
-    }
-  ]
+  "addonVersion": "0.4.0.0",
+  "host": {
+    "name": "OpenAI.Codex",
+    "publisher": "CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B",
+    "publisherId": "2p2nqsd0c76g0",
+    "architecture": "x64",
+    "files": ["app/ChatGPT.exe", "app/resources/app.asar", "app/resources/owl-app.ini", "app/resources/native/windows-updater.node", "app/chrome.dll"]
+  },
+  "loader": {
+    "id": "windows-updater-napi-v1",
+    "module": "app/resources/native/windows-updater.node",
+    "asar": "app/resources/app.asar",
+    "runtime": "app/chrome.dll",
+    "exports": ["napi_register_module_v1", "node_api_module_get_api_version_v1"],
+    "bridgeSymbols": ["napi_create_string_utf8", "napi_run_script", "napi_get_and_clear_last_exception", "napi_is_exception_pending", "napi_throw_error"],
+    "systemLibraries": ["kernel32.dll", "advapi32.dll", "ole32.dll", "shell32.dll", "shlwapi.dll", "oleaut32.dll"]
+  }
 }

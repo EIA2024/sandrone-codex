@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { inspectWorkspace, updateHost, startupState } = require('./startup-readiness.cjs');
+const { hostContract, isShellUrl, mediaUrl } = require('./host-adapter.cjs');
 
 function startupMedia(themeRoot) {
   const root = path.join(themeRoot, 'assets/motion');
@@ -10,10 +11,8 @@ function startupMedia(themeRoot) {
     if (!/^sandrone-startup-(intro|idle|poster)\.(mp4|jpg)$/.test(name)) throw new Error('Invalid startup media name');
     const file = path.join(root, name);
     if (!fs.statSync(file).isFile()) throw new Error('Missing startup media');
-    return 'app://fs/@fs/' + encodeURI(file.replaceAll('\\', '/'));
+    return mediaUrl(file);
   };
-  // A tiny embedded poster can paint before app: starts serving video. Large
-  // videos are served as files by the host's existing range-aware media route.
   const poster = fs.readFileSync(path.join(root, 'sandrone-startup-poster.jpg'));
   if (poster.length > 512 * 1024 || poster[0] !== 255 || poster[1] !== 216) throw new Error('Invalid startup poster');
   const still = fs.readFileSync(path.join(root, 'sandrone-startup-still.jpg'));
@@ -23,29 +22,28 @@ function startupMedia(themeRoot) {
 
 function createStartup(electron, options) {
   const { ipcMain, session, app } = electron;
-  // Old browser adapters exercise the portable player separately. Production
-  // Electron always has these APIs; absence is recorded rather than calling a
-  // late overlay a successful early-startup replacement.
   if (!ipcMain || !session) return null;
-  const documents = new Map();
+  const documents = new Map(), themes = new Map();
   let shown = false, media;
   try { media = startupMedia(options.themeRoot); }
-  catch (error) { options.log('startup-media-error', error); media = { intro: null, loop: null, poster: '' }; }
-  const allowed = event => {
-    if (event.sender.isDestroyed() || event.senderFrame !== event.sender.mainFrame) return false;
-    try {
-      const url = new URL(event.senderFrame.url);
-      return url.protocol === 'app:' && url.hostname === '-' && url.pathname === '/index.html' && !/^\/(avatar-overlay|screen-overlay)(\/|$)/.test(url.searchParams.get('initialRoute') || '');
-    } catch { return false; }
-  };
+  catch (error) { options.log('startup-media-error', error); media = { intro: null, loop: null, poster: '', error: true }; }
+  const allowed = event => !event.sender.isDestroyed() && event.senderFrame === event.sender.mainFrame && isShellUrl(event.senderFrame.url);
   const send = (document, message) => {
     if (documents.get(document.wc.id) === document && !document.wc.isDestroyed()) document.wc.send('sandrone:startup-state', { ...message, token: document.token });
   };
+  const degrade = (document, reason) => {
+    if (document.degraded) return;
+    document.degraded = true;
+    options.log('startup-degraded', { message: reason });
+    options.onDegraded?.(document.wc, reason);
+    send(document, { kind: 'degraded', reason });
+  };
+  const inspect = document => document.wc.executeJavaScript(`(${inspectWorkspace.toString()})(${JSON.stringify(document.expected)},${JSON.stringify(hostContract)})`);
   async function probe(document, entering) {
-    if (document.busy) return;
+    if (document.busy || document.degraded) return;
     document.busy = true;
     try {
-      const result = await document.wc.executeJavaScript(`(${inspectWorkspace.toString()})(${JSON.stringify(document.expected)})`);
+      const result = await inspect(document);
       if (documents.get(document.wc.id) !== document) return;
       const candidate = startupState(result, document.hosts, true, Date.now() - document.started);
       const settled = candidate.ready && document.candidate;
@@ -53,37 +51,39 @@ function createStartup(electron, options) {
       const state = startupState(result, document.hosts, settled, Date.now() - document.started);
       const progressKey = state.steps.map(Number).join('');
       if (document.progressKey !== progressKey) { document.progressKey = progressKey; options.log('startup-progress-' + progressKey); }
+      if (state.degraded) { degrade(document, result.imageError ? 'theme-image-error' : 'readiness-unconfirmed'); return; }
       if (state.ready && entering) {
-        // Two renderer frames allow the verified styles and decoded images to
-        // reach painting. Recheck afterwards instead of treating elapsed time
-        // as proof of readiness.
         await document.wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-        const fresh = await document.wc.executeJavaScript(`(${inspectWorkspace.toString()})(${JSON.stringify(document.expected)})`);
+        if (documents.get(document.wc.id) !== document) return;
+        const fresh = await inspect(document);
+        if (documents.get(document.wc.id) !== document) return;
         const confirmed = startupState(fresh, document.hosts, true, Date.now() - document.started);
         send(document, { kind: 'state', state: confirmed });
+        if (confirmed.degraded) { degrade(document, 'readiness-unconfirmed'); return; }
         if (confirmed.ready && options.preferences().enabled && (entering !== 'auto' || options.preferences().autoEnterOnReady)) send(document, { kind: 'enter', reason: entering });
       } else send(document, { kind: 'state', state });
     } catch (error) {
-      if (documents.get(document.wc.id) === document) send(document, { kind: 'state', state: { steps: [true, false, false, false, false], ready: false, status: '工作区检查暂未完成', recovery: true } });
+      if (documents.get(document.wc.id) === document) degrade(document, 'host-probe-error');
     } finally { document.busy = false; }
   }
+  // Bootstrap is asynchronous: a missing main-process reply must never freeze
+  // the renderer before its independent fail-open timer can run.
   ipcMain.on('sandrone:startup-bootstrap', event => {
-    // Setting returnValue sends the synchronous IPC reply immediately. Do not
-    // send a placeholder before the configuration: the renderer keeps it.
-    if (!allowed(event)) { event.returnValue = null; return; }
+    if (!allowed(event)) return;
     const preferences = options.preferences();
-    const document = { wc: event.sender, token: crypto.randomUUID(), hosts: new Map(), expected: null, started: Date.now(), busy: false, candidate: false };
+    const document = { wc: event.sender, token: crypto.randomUUID(), hosts: new Map(), expected: themes.get(event.sender.id) || null, started: Date.now(), busy: false, candidate: false, degraded: false };
     documents.set(event.sender.id, document);
     const show = preferences.enabled && preferences.openingOnLaunch && !shown;
     if (show) shown = true;
     if (show) options.log('startup-document-created');
-    event.returnValue = { token: document.token, preferences, show, media };
+    send(document, { kind: 'bootstrap', config: { token: document.token, preferences, show, media, host: hostContract } });
   });
   ipcMain.on('sandrone:startup-action', (event, message) => {
     if (!allowed(event)) return;
     const document = documents.get(event.sender.id);
     if (!document || message?.token !== document.token) return;
     if (message.action === 'milestone' && ['screen-mounted', 'first-video-frame', 'intro-ended', 'entered'].includes(message.name)) { options.log('startup-' + message.name); return; }
+    if (message.action === 'degraded' && ['readiness-timeout', 'media-error', 'media-timeout', 'host-incompatible'].includes(message.reason)) { degrade(document, message.reason); return; }
     if (message.action === 'host') { updateHost(document.hosts, message); return; }
     if (message.action === 'probe' || message.action === 'retry') {
       if (message.action === 'retry') {
@@ -97,26 +97,36 @@ function createStartup(electron, options) {
     if (message.action === 'native') void options.disable().catch(error => options.log('startup-disable-error', error));
   });
   const register = () => {
+    // Electron's defaultSession getter is unavailable until app is ready.
     const ses = session.defaultSession;
-    const filePath = path.join(__dirname, 'startup-preload.cjs');
-    if (typeof ses.registerPreloadScript !== 'function') throw new Error('Early preload API unavailable in this Codex build');
-    ses.registerPreloadScript({ type: 'frame', filePath });
+    if (typeof ses?.registerPreloadScript !== 'function') {
+      options.log('startup-preload-unavailable');
+      return;
+    }
+    ses.registerPreloadScript({ type: 'frame', filePath: path.join(__dirname, 'startup-preload.cjs') });
     options.log('startup-preload-registered');
   };
-  if (app.isReady()) register(); else app.whenReady().then(register).catch(error => options.log('startup-preload-error', error));
+  if (app.isReady()) {
+    try { register(); } catch (error) { options.log('startup-preload-error', error); return null; }
+  } else app.whenReady().then(register).catch(error => options.log('startup-preload-error', error));
   return {
     setTheme(win, loaded) {
+      themes.set(win.webContents.id, { themeId: loaded.theme.id, revision: loaded.revision });
       const document = documents.get(win.webContents.id);
       if (document) { document.expected = { themeId: loaded.theme.id, revision: loaded.revision }; document.candidate = false; }
     },
+    degrade(win, reason = 'host-incompatible') { const document = documents.get(win.webContents.id); if (document) degrade(document, reason); },
     update(preferences) {
       for (const document of documents.values()) {
         if (!preferences.enabled) { document.expected = null; document.candidate = false; }
         send(document, { kind: 'preferences', preferences });
       }
     },
-    replay(win) { const document = documents.get(win.webContents.id); if (document) send(document, { kind: 'replay' }); },
-    invalidate(win) { documents.delete(win.webContents.id); },
+    replay(win) {
+      const document = documents.get(win.webContents.id);
+      if (document) { document.started = Date.now(); document.candidate = false; document.degraded = false; send(document, { kind: 'replay' }); }
+    },
+    invalidate(win) { documents.delete(win.webContents.id); themes.delete(win.webContents.id); },
   };
 }
 

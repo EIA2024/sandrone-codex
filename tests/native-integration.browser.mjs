@@ -48,7 +48,7 @@ try {
   getURL(){return 'app://-/index.html';}
   async executeJavaScript(expression){
    expressions.push(expression.length);
-   if(expression.startsWith("Boolean(document.querySelector('aside.app-shell-left-panel')"))probes++;
+   if(expression.startsWith('(function inspectShell('))probes++;
    if(holdTransfer&&expression.includes('.push(')&&expression.includes('__SANDRONE_OPENING_INPUT__')){
     holdTransfer=false;transferHeld=true;
     await new Promise(resolve=>{resumeTransfer=resolve;});
@@ -84,7 +84,7 @@ try {
   assert.equal(manager.error,'');
  };
  await until(()=>probes>=2,'delayed shell probe');
- assert.equal(await page.locator('#sandrone-native-controls').count(),0);
+ assert.equal(await page.locator('#sandrone-native-controls').count(),1);
  assert.equal(await page.evaluate(()=>document.documentElement.hasAttribute('data-dream-skin')),false);
  await page.evaluate(()=>{
   document.body.innerHTML='<aside class="app-shell-left-panel"><button>New chat</button></aside><main class="main-surface" data-app-shell-main-surface><div role="main"><form><textarea aria-label="Message" style="width:600px;height:90px"></textarea></form></div></main>';
@@ -142,9 +142,35 @@ try {
   assert.equal(await page.evaluate(()=>window.__SANDRONE_OPENING_STATE__.stage),'playing');
   await clickAction('disable');checks.push('new-generation-replay-recovers');
  }
+ await manager.dispatch('disable');
+ win.webContents.emit('did-start-navigation', {}, 'app://-/index.html', false, true);
+ await page.goto('about:blank');
+ await page.setContent('<html><body><main class="main-surface"><textarea style="width:400px;height:80px"></textarea></main></body></html>');
+ win.webContents.emit('did-finish-load');
+ await page.waitForSelector('#sandrone-native-controls');
+ await manager.dispatch('enable');
+ await page.waitForFunction(()=>document.documentElement.getAttribute('data-dream-skin')==='active');
+ assert.equal(manager.preferences.enabled,true);
+ assert.equal(await page.locator('aside').count(),0);
+ checks.push('partial-shell-keeps-theme-and-independent-management');
+ await manager.dispatch('disable');
+ const cssFile=path.join(themeRoot,'engine/native-ui.css');
+ await fs.rename(cssFile,cssFile+'.test-backup');
+ await manager.dispatch('enable');
+ assert.equal(manager.preferences.enabled,true,'an unavailable optional stylesheet must not disable the working theme');
+ assert.equal(await page.evaluate(()=>document.documentElement.getAttribute('data-dream-skin')),'active');
+ assert.equal(await page.locator('#sandrone-native-controls').count(),1);
+ assert.match(manager.warning,/部分主题/);
+ await fs.rename(cssFile+'.test-backup',cssFile);
+ await manager.dispatch('enable');
+ assert.equal(manager.warning,'');
+ await manager.dispatch('disable');
+ checks.push('optional-style-failure-preserves-theme','retry-restores-missing-effect');
  assert.deepEqual(pageErrors,[]);
  const log=await fs.readFile(path.join(dataRoot,'events.jsonl'),'utf8').catch(error=>{if(error.code==='ENOENT')return '';throw error;});
- assert.equal(log,'','runtime must not silently log integration errors');
+ const events=log.trim().split('\n').filter(Boolean).map(JSON.parse);
+ assert.deepEqual(events.filter(event=>event.event!=='runtime-loaded'&&event.event!=='feature-degraded'),[],'runtime must not silently log unexpected errors');
+ assert.equal(events.filter(event=>event.event==='feature-degraded'&&event.feature==='native-controls').length,1);
  console.log(JSON.stringify({pass:true,scope:'real runtime and theme payload in Chromium with an Electron adapter; not Electron/AppX installation or subjective smoothness acceptance',browser:browser.version(),openingClient:perf,checks,measurements}));
 } finally {
  resumeTransfer?.();win?.close();await browser?.close();

@@ -1,7 +1,7 @@
 // Self-contained: sandboxed Electron preloads cannot require sibling modules.
 // This factory is also exercised in an isolated browser by the regression suite.
-function installStartupScreen(config, send) {
-  let host, shadow, video, poll, watchdog, leaving, previousFocus;
+function installStartupScreen(config, deliver) {
+  let host, shadow, video, poll, watchdog, readinessTimer, leaving, previousFocus;
   let disposed = false, introDone = false, requestPending = false, exiting = false, lastSpace = -Infinity;
   let loginObserver;
   let state = { steps: [true, false, false, false, false], ready: false, status: '正在启动页面' };
@@ -10,6 +10,7 @@ function installStartupScreen(config, send) {
   const events = new AbortController();
   const now = () => performance.now();
   const diagnostics = { mountedAt: null, firstVideoFrameAt: null, introEndedAt: null, enteredAt: null };
+  const send = (action, detail) => { try { deliver(action, detail); } catch {} };
 
   function clearMedia() {
     if (!video) return;
@@ -17,14 +18,28 @@ function installStartupScreen(config, send) {
     clearTimeout(watchdog);
   }
   function remove() {
-    clearInterval(poll); clearTimeout(leaving); clearTimeout(watchdog);
+    clearInterval(poll); clearTimeout(leaving); clearTimeout(watchdog); clearTimeout(readinessTimer); readinessTimer = null;
     const ownedFocus = host && (document.activeElement === host || host.contains(document.activeElement));
     clearMedia(); host?.remove(); host = shadow = null;
     if (ownedFocus && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   }
+  function degrade(reason) {
+    diagnostics.degradedReason = reason;
+    diagnostics.serviceStatus = state.serviceStatus || 'unknown';
+    state.ready = false;
+    // Cleanup must not depend on a live coordinator or successful IPC delivery.
+    try { send('degraded', { reason }); } catch {} finally { remove(); }
+  }
+  function armReadinessDeadline() {
+    if (readinessTimer || !host) return;
+    readinessTimer = setTimeout(() => { readinessTimer = null; if (host && !state.ready) degrade('readiness-timeout'); }, 30000);
+  }
   function publish() {
     if (!host) return;
+    if (state.degraded) { degrade('host-incompatible'); return; }
+    if (state.ready) { clearTimeout(readinessTimer); readinessTimer = null; } else armReadinessDeadline();
     host.dataset.ready = String(state.ready);
+    host.dataset.serviceStatus = state.serviceStatus || 'unknown';
     host.dataset.introDone = String(introDone);
     host.dataset.steps = state.steps.map(Number).join('');
     host.dataset.diagnostics = JSON.stringify(diagnostics);
@@ -32,18 +47,11 @@ function installStartupScreen(config, send) {
     const progress = shadow.querySelector('progress');
     progress.value = count; progress.setAttribute('aria-valuetext', state.status);
     shadow.querySelector('.status').textContent = state.status;
-    // The cover sits above the page's theme menu. Recovery must live inside it
-    // so a failed check cannot hide the only way back to the native workspace.
-    const needsRecovery = !state.ready && Boolean(state.recovery || state.login);
-    const recoveryFocus = shadow.activeElement?.closest('.recovery') ? shadow.activeElement : null;
     shadow.querySelector('.hint').textContent = state.ready
       ? preferences.autoEnterOnReady ? introDone ? '正在进入工作区' : '工作区已就绪 · 片头播放后自动进入' : '双击进入 · 或连续按两次空格进入'
-      : needsRecovery ? state.login ? '请先完成登录，也可使用原生界面' : '加载尚未就绪，可重试检查或使用原生界面' : '正在准备工作区，完成后可以进入';
-    shadow.querySelector('.recovery').hidden = !needsRecovery;
+      : '正在准备工作区，完成后可以进入';
+    shadow.querySelector('.recovery').hidden = !state.login;
     shadow.querySelector('[data-action="login"]').hidden = !state.login;
-    shadow.querySelector('[data-action="retry"]').hidden = !needsRecovery || Boolean(state.login);
-    shadow.querySelector('[data-action="native"]').hidden = !needsRecovery;
-    if (recoveryFocus?.closest('[hidden]')) shadow.querySelector('.screen').focus({ preventScroll: true });
     if (preferences.autoEnterOnReady && state.ready && introDone) requestEntry('auto');
   }
   function requestEntry(reason) {
@@ -61,7 +69,7 @@ function installStartupScreen(config, send) {
     if (!video || !config.media.loop) return fallback();
     video.poster = config.media.still || config.media.poster;
     video.loop = true; video.src = config.media.loop;
-    const owner = video; video.play().catch(() => { if (video === owner) fallback(); });
+    const owner = video; video.play().catch(() => { if (video === owner) degrade('media-error'); });
   }
   function mount(replay = false) {
     if (disposed || host || !preferences.enabled || !document.documentElement) return;
@@ -84,7 +92,7 @@ function installStartupScreen(config, send) {
       .recovery{margin-top:10px}button{color:#eee9dc;background:#263343;border:1px solid #766246;padding:7px 12px;margin:4px;cursor:pointer}
       .screen.fading{opacity:0;transition:opacity .25s ease}.screen.fading *{pointer-events:none}
       [hidden]{display:none!important}
-    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button><button data-action="retry" hidden>重试检查</button><button data-action="native" hidden>使用原生界面</button></div></div></div>`;
+    </style><div class="screen" role="dialog" aria-modal="true" aria-label="桑多涅启动画面" tabindex="0"><img class="art" alt="桑多涅"><div class="bottom"><div class="status" aria-live="polite"></div><progress max="5" value="1" aria-label="启动阶段"></progress><div class="hint"></div><div class="recovery" hidden><button data-action="login" hidden>继续登录</button></div></div></div>`;
     shadow.querySelector('img').src = introDone ? config.media.still || config.media.poster : config.media.poster;
     const screen = shadow.querySelector('.screen');
     screen.addEventListener('dblclick', event => {
@@ -110,13 +118,15 @@ function installStartupScreen(config, send) {
     });
     document.documentElement.appendChild(host); screen.focus({ preventScroll: true });
     send('milestone', { name: 'screen-mounted' });
+    armReadinessDeadline();
+    if (config.media.error) { degrade('media-error'); return; }
     if (!introDone) {
       video = document.createElement('video'); video.className = 'art';
       video.muted = true; video.playsInline = true; video.preload = 'auto';
       video.setAttribute('aria-hidden', 'true'); video.poster = config.media.poster;
       screen.insertBefore(video, shadow.querySelector('.bottom'));
       const owner = video;
-      video.addEventListener('error', () => { if (video === owner) fallback(); });
+      video.addEventListener('error', () => { if (video === owner) degrade('media-error'); });
       video.addEventListener('ended', () => {
         if (video !== owner || introDone) return;
         introDone = true; diagnostics.introEndedAt = now(); send('milestone', { name: 'intro-ended' }); publish();
@@ -130,14 +140,14 @@ function installStartupScreen(config, send) {
       });
       for (const event of ['waiting', 'stalled']) video.addEventListener(event, () => {
         if (video !== owner) return;
-        clearTimeout(watchdog); watchdog = setTimeout(() => { if (video === owner) fallback(); }, 12000);
+        clearTimeout(watchdog); watchdog = setTimeout(() => { if (video === owner) degrade('media-timeout'); }, 12000);
       });
-      video.src = config.media.intro; video.play().catch(() => { if (video === owner) fallback(); });
+      video.src = config.media.intro; video.play().catch(() => { if (video === owner) degrade('media-error'); });
       video.requestVideoFrameCallback?.(() => {
         if (video !== owner || !host) return;
         diagnostics.firstVideoFrameAt = now(); send('milestone', { name: 'first-video-frame' }); publish();
       });
-      watchdog = setTimeout(fallback, 12000);
+      watchdog = setTimeout(() => degrade('media-timeout'), 12000);
     }
     publish();
     clearInterval(poll); poll = setInterval(() => send('probe'), 250);
@@ -152,10 +162,11 @@ function installStartupScreen(config, send) {
     }
     if (message.kind === 'replay') { remove(); state.ready = false; mount(true); }
     if (message.kind === 'dismiss') remove();
+    if (message.kind === 'degraded') { degrade('host-incompatible'); return; }
     if (message.kind === 'login') {
       remove(); loginObserver?.disconnect();
       loginObserver = new MutationObserver(() => {
-        if (document.querySelector('aside.app-shell-left-panel') && document.querySelector('main:is(.main-surface,[data-app-shell-main-surface],[class*="_MainContentSurface_"])')) {
+        if (config.host?.selectors && document.querySelector(config.host.selectors.sidebar) && document.querySelector(config.host.selectors.main)) {
           loginObserver.disconnect(); state.ready = false; mount();
         }
       });
@@ -186,19 +197,29 @@ function installStartupScreen(config, send) {
 
 if (typeof window === 'undefined') {
   module.exports = { installStartupScreen };
-} else if (process.isMainFrame && location.protocol === 'app:' && location.hostname === '-' && location.pathname === '/index.html') {
+} else if (process.isMainFrame) {
   const { ipcRenderer } = require('electron');
-  // Listen before the official preload subscribes. Only lifecycle messages are
-  // forwarded; chat contents and general IPC are never copied or exposed.
-  let screen, config;
-  ipcRenderer.on('codex_desktop:message-for-view', (_event, value) => {
-    if (!config || !['codex-app-server-initialized', 'codex-app-server-connection-changed'].includes(value?.type)) return;
-    ipcRenderer.send('sandrone:startup-action', { token: config.token, action: 'host', hostId: value.hostId, type: value.type, state: value.state });
-  });
-  ipcRenderer.on('sandrone:startup-state', (_event, value) => screen?.receive(value));
-  config = ipcRenderer.sendSync('sandrone:startup-bootstrap');
-  if (config) {
-    screen = installStartupScreen(config, (action, detail = {}) => ipcRenderer.send('sandrone:startup-action', { ...detail, token: config.token, action }));
-    window.addEventListener('pagehide', () => screen.dispose(), { once: true });
-  }
+  let screen, config, serviceListener;
+  const stateListener = (_event, value) => {
+    if (value?.kind === 'bootstrap' && !config) {
+      config = value.config;
+      if (!config?.token || config.host?.schema !== 1) return;
+      const service = config.host.service;
+      serviceListener = (_event, message) => {
+        if (![service.initialized, service.connection].includes(message?.type)) return;
+        ipcRenderer.send('sandrone:startup-action', { token: config.token, action: 'host', hostId: message.hostId, type: message.type, state: message.state });
+      };
+      ipcRenderer.on(service.channel, serviceListener);
+      screen = installStartupScreen(config, (action, detail = {}) => ipcRenderer.send('sandrone:startup-action', { ...detail, token: config.token, action }));
+    } else screen?.receive(value);
+  };
+  ipcRenderer.on('sandrone:startup-state', stateListener);
+  // The main process validates the exact allowed host surface before replying.
+  // Missing replies do not block the renderer or create a covering element.
+  ipcRenderer.send('sandrone:startup-bootstrap');
+  window.addEventListener('pagehide', () => {
+    screen?.dispose();
+    ipcRenderer.removeListener('sandrone:startup-state', stateListener);
+    if (serviceListener) ipcRenderer.removeListener(config.host.service.channel, serviceListener);
+  }, { once: true });
 }

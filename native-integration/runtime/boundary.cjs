@@ -1,12 +1,4 @@
-function isShellUrl(value) {
-  try {
-    const url = new URL(value);
-    const route = url.searchParams.get('initialRoute') || '';
-    return url.protocol === 'app:' && url.hostname === '-' &&
-      !url.pathname.endsWith('/avatar-overlay-composition-surface.html') &&
-      route !== '/avatar-overlay' && !route.startsWith('/avatar-overlay/');
-  } catch { return false; }
-}
+const { isShellUrl } = require('./host-adapter.cjs');
 
 const actions = new Set(['enable', 'disable', 'replay', 'opening', 'auto-enter', 'uninstall', 'cancel-uninstall', 'status']);
 function readAction(details, mainFrame, prefix) {

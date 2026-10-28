@@ -28,6 +28,8 @@ try {
     if ((Entry-Hash ($native + 'windows-updater.node')) -cne $bundle.proxySha256) { throw 'Native bridge bytes changed.' }
     $installation = Read-Entry ($native + 'sandrone/installation.json') | ConvertFrom-Json
     if ($installation.addonPackageFullName -cne $bundle.addonPackageFullName -or $installation.targetPackage -cne $bundle.targetPackage) { throw 'Runtime metadata differs from package identity.' }
+    if (!$bundle.compatibility.compatible -or $bundle.compatibility.loader -cne 'windows-updater-napi-v1' -or $bundle.sourceKind -notin @('signed-msix', 'installed-store-package')) { throw 'Missing verified source/loading contract evidence.' }
+    if ($bundle.sourceKind -ceq 'installed-store-package' -and $null -ne $bundle.sourceMsixSha256) { throw 'Installed-source build cannot claim a downloaded MSIX digest.' }
     $startup = Read-Entry ($native + 'sandrone/theme/assets/motion/startup.json') | ConvertFrom-Json
     if ($startup.source.fingerprint -notmatch '^[a-f0-9]{64}$' -or $startup.source.fingerprint -cne $bundle.startupSourceFingerprint -or $startup.source.fingerprint -cne $installation.startupSourceFingerprint) { throw 'Startup source version differs from the build receipt.' }
     foreach ($inputFile in $startup.source.files) {
@@ -39,7 +41,7 @@ try {
         $entryName = $native + 'sandrone/theme/assets/motion/' + $asset.file
         if ((Entry-Hash $entryName) -cne $asset.sha256 -or $archive.GetEntry($entryName).Length -ne $asset.bytes) { throw ('Packaged startup output differs from its manifest: ' + $asset.file) }
     }
-    foreach ($relative in @('runtime/main.cjs', 'runtime/controls.cjs', 'runtime/startup.cjs', 'runtime/startup-preload.cjs', 'runtime/startup-readiness.cjs', 'management/uninstall.ps1', 'theme/engine/renderer.mjs', 'theme/vendor/dream-skin/windows/scripts/injector.mjs', 'theme/themes/sandrone/manifest.json', 'theme/assets/motion/sandrone-loop-1080p.mp4', 'theme/assets/motion/startup.json', 'theme/assets/motion/sandrone-startup-intro.mp4', 'theme/assets/motion/sandrone-startup-idle.mp4', 'theme/assets/motion/sandrone-startup-poster.jpg', 'theme/assets/motion/sandrone-startup-still.jpg')) {
+    foreach ($relative in @('runtime/main.cjs', 'runtime/controls.cjs', 'runtime/host-adapter.cjs', 'runtime/startup.cjs', 'runtime/startup-preload.cjs', 'runtime/startup-readiness.cjs', 'management/uninstall.ps1', 'theme/engine/renderer.mjs', 'theme/vendor/dream-skin/windows/scripts/injector.mjs', 'theme/themes/sandrone/manifest.json', 'theme/assets/motion/sandrone-loop-1080p.mp4', 'theme/assets/motion/startup.json', 'theme/assets/motion/sandrone-startup-intro.mp4', 'theme/assets/motion/sandrone-startup-idle.mp4', 'theme/assets/motion/sandrone-startup-poster.jpg', 'theme/assets/motion/sandrone-startup-still.jpg')) {
         if (!$archive.GetEntry($native + 'sandrone/' + $relative)) { throw ('Bundle is not self-contained: ' + $relative) }
     }
     foreach ($entry in $archive.Entries) {

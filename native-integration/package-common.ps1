@@ -11,12 +11,30 @@ function Write-SandroneJson([string]$Path, $Value) {
 }
 
 function Get-SandroneTarget($Compatibility, $Identity) {
-    $targets = @($Compatibility.targets | Where-Object {
-        $_.name -ceq $Identity.Name -and $_.version -ceq $Identity.Version -and
-        $_.publisher -ceq $Identity.Publisher -and $_.architecture -ceq $Identity.ProcessorArchitecture
-    })
-    if ($targets.Count -ne 1) { throw 'Unsupported official Codex package. Add and verify an explicit compatibility entry before building.' }
-    return $targets[0]
+    if ($Compatibility.schema -ne 2) { throw 'Unsupported compatibility policy schema.' }
+    $policy = $Compatibility.host
+    $version = [string]$Identity.Version
+    if ($Identity.Name -cne $policy.name -or $Identity.Publisher -cne $policy.publisher -or
+        $Identity.ProcessorArchitecture -cne $policy.architecture) { throw 'Unsupported official Codex identity, publisher or architecture.' }
+    Assert-SandroneVersion $version
+    return [pscustomobject]@{
+        name = $policy.name; version = $version; publisher = $policy.publisher; architecture = $policy.architecture
+        packageFullName = ('{0}_{1}_{2}__{3}' -f $policy.name, $version, $policy.architecture, $policy.publisherId)
+        requiredFiles = @($policy.files)
+    }
+}
+
+function Assert-SandroneVersion([string]$Version) {
+    if ($Version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
+        @($Version.Split('.') | Where-Object { [double]$_ -gt 65535 }).Count) { throw 'Expected a four-part MSIX version with components between 0 and 65535.' }
+}
+
+function Resolve-SandroneNode([string]$Requested) {
+    if ($Requested) { $node = (Get-Item -LiteralPath $Requested).FullName }
+    else { $node = (Get-Command node.exe -ErrorAction Stop).Source }
+    $version = & $node -p 'process.versions.node'
+    if ($LASTEXITCODE -ne 0 -or [version]$version -lt [version]'24.0.0') { throw 'Node.js 24 or later is required.' }
+    return $node
 }
 
 function Assert-SandroneRelativePath([string]$Path) {

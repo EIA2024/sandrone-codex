@@ -1,5 +1,5 @@
 // This function is serialized into a trusted main window. Keep it self-contained.
-exports.installControls = function installControls(prefix, state) {
+exports.installControls = function installControls(prefix, state, contract) {
   const key = '__SANDRONE_NATIVE_CONTROLS__';
   if (window[key]) { window[key].update(state, prefix); return true; }
   const host = document.createElement('div');
@@ -76,7 +76,7 @@ exports.installControls = function installControls(prefix, state) {
   document.addEventListener('pointerdown', outside, true);
   document.addEventListener('keydown', escape, true);
   const place = () => {
-    const bar = document.querySelector('[class*="ApplicationMenuTopBar_"]')?.getBoundingClientRect();
+    const bar = contract?.selectors?.titlebar ? document.querySelector(contract.selectors.titlebar)?.getBoundingClientRect() : null;
     const overlay = navigator.windowControlsOverlay;
     const area = overlay?.getTitlebarAreaRect?.();
     const nativeWidth = overlay?.visible && area?.width > 0 ? innerWidth - area.x - area.width : 138;
@@ -111,8 +111,8 @@ exports.installControls = function installControls(prefix, state) {
       : next.uninstallStatus === 'removing' ? '正在移除附加包。'
       : '选择自动保存。原生界面保留此管理入口。';
     const error = shadow.querySelector('.error');
-    error.hidden = !next.error;
-    error.textContent = next.error || '';
+    error.hidden = !(next.error || next.warning);
+    error.textContent = next.error || next.warning || '';
     place();
   };
   window.sandroneReplayOpening = () => { if (state.enabled) send('replay'); };
