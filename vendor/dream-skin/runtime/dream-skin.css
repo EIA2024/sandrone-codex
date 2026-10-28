@@ -254,9 +254,11 @@ html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ [class*="text-token
   color: rgb(var(--ds-muted-rgb) / .92) !important;
 }
 
-/* Preserve native inline color declarations for sidebar indicators without
+/* Project artwork may inherit its user-selected color from a wrapper. Keep
+   project drop-zone SVGs out of the generic sidebar recoloring rules.
+   Preserve native inline color declarations for sidebar indicators without
    mistaking background-color or custom properties for a foreground color. */
-html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ svg:not(:where([data-sidebar-project-drop-zone="project-icon"] *)):not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
   color: rgb(var(--ds-muted-rgb) / .96) !important;
 }
 
@@ -267,8 +269,8 @@ html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ a:hover {
   transform: none !important;
 }
 
-html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ button:hover svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]),
-html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ a:hover svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ button:hover svg:not(:where([data-sidebar-project-drop-zone="project-icon"] *)):not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]),
+html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ a:hover svg:not(:where([data-sidebar-project-drop-zone="project-icon"] *)):not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
   color: var(--ds-accent) !important;
 }
 
@@ -295,7 +297,7 @@ html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ [aria-current="page
   color: var(--ds-text) !important;
 }
 
-html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ [aria-current="page"] svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+html[data-dream-skin="active"] __DREAM_SELECTOR_LEFT_PANEL__ [aria-current="page"] svg:not(:where([data-sidebar-project-drop-zone="project-icon"] *)):not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
   color: var(--ds-accent) !important;
 }
 
@@ -1676,7 +1678,7 @@ html[data-dream-skin="active"] [data-ds-part="composer"]
 }
 html[data-dream-skin="active"][data-dream-upload-alpha="true"]
   __DREAM_SELECTOR_LEFT_PANEL__ button:not(:disabled):not([aria-disabled="true"])
-  svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+  svg:not(:where([data-sidebar-project-drop-zone="project-icon"] *)):not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
   color: inherit !important;
 }
 html[data-dream-skin="active"][data-dream-upload-alpha="true"]

@@ -1,0 +1,68 @@
+// Run with PLAYWRIGHT_MODULE pointing at an installed Playwright package.
+// Optional CHROMIUM_EXECUTABLE selects a system Chrome/Chromium binary.
+// This only opens an isolated headless browser; it never connects to Codex.
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {openingAssets} from '../engine/assets.mjs';
+import {prepareOpening,showOpening,releaseOpening} from '../engine/opening-client.mjs';
+import {removeNativeUi,setStartupPhase} from '../engine/renderer.mjs';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});
+const page=await browser.newPage({viewport:{width:1280,height:720}});
+const assets=await openingAssets();
+const expressions=[];
+const evaluate=async expression=>{expressions.push(expression.length);return page.evaluate(expression);};
+const invoke=(fn,...args)=>`(${fn.toString()})(${args.map(x=>JSON.stringify(x)).join(',')})`;
+const clear=()=>releaseOpening(evaluate);
+const checks=[];
+const measurements={};
+try{
+ await page.setContent('<html data-dream-skin="active"><body><input id="previous" data-ds-part="composer" style="width:500px"></body></html>');
+ await page.locator('#previous').focus();
+ const prepared=await prepareOpening(evaluate,assets);assert.equal(prepared.prepared,true);
+ measurements.prepareMs=Math.round(prepared.preparedMs);measurements.coldTransferCalls=expressions.length;measurements.largestColdExpressionChars=Math.max(...expressions);
+ assert.ok(Math.max(...expressions)<270000,'no multi-megabyte JS compile');
+ const simultaneous=await Promise.all([showOpening(evaluate,assets,{preview:true}),showOpening(evaluate,assets,{preview:true})]);
+ assert.equal(simultaneous.filter(r=>r.shown).length,1);checks.push('concurrent-play-ownership');
+ await page.waitForTimeout(400);
+ const media=await page.evaluate(()=>{const c=window.__SANDRONE_MEDIA_CACHE__;window.savedColor=c.color;return{width:c.color.videoWidth,height:c.color.videoHeight,src:c.color.src,ready:c.color.readyState};});
+ assert.equal(media.width,1920);assert.equal(media.height,1080);assert.ok(media.src.startsWith('blob:'));assert.ok(media.ready>=3);
+ assert.equal(await page.locator('#sandrone-opening .signature-title svg path').count()>0,true);
+ assert.equal(await page.locator('#sandrone-opening .character-path').count()>0,true);
+ assert.equal(await page.locator('#sandrone-opening canvas').count(),0);checks.push('full-resolution-vector-and-video-assets');
+ const beforeReveal=await page.evaluate(()=>window.savedColor.currentTime);await page.waitForTimeout(2200);
+ assert.equal(await page.locator('#sandrone-opening .scene').evaluate(e=>e.classList.contains('motion-ready')),true);
+ assert.ok(await page.evaluate(()=>window.savedColor.currentTime)>beforeReveal,'color reveal does not rewind');checks.push('continuous-color-reveal');
+ await page.keyboard.press('Escape');await page.waitForTimeout(800);
+ assert.equal(await page.locator('#sandrone-opening').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.id),'previous');
+ const idle=await page.evaluate(()=>({paused:window.savedColor.paused,time:window.savedColor.currentTime}));assert.equal(idle.paused,true);
+ await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>window.savedColor.currentTime),idle.time);checks.push('dismissal-pauses-and-restores-focus');
+ expressions.length=0;await showOpening(evaluate,assets,{preview:true});assert.ok(Math.max(...expressions)<2000,'replay sends no player or media again');
+ measurements.replayCalls=expressions.length;measurements.largestReplayExpressionChars=Math.max(...expressions);
+ assert.equal(await page.evaluate(()=>window.savedColor===window.__SANDRONE_MEDIA_CACHE__.color),true);
+ await page.keyboard.press('Space');await page.keyboard.press('Space');await page.waitForTimeout(800);assert.equal(await page.locator('#sandrone-opening').count(),0);checks.push('replay-cache-and-double-key-skip');
+ await showOpening(evaluate,assets,{preview:true});await page.locator('#sandrone-opening .scene').dblclick();await page.waitForTimeout(800);assert.equal(await page.locator('#sandrone-opening').count(),0);
+ await page.evaluate(invoke(setStartupPhase,'connecting'));await showOpening(evaluate,assets);await page.waitForTimeout(5400);
+ assert.equal(await page.evaluate(()=>window.__SANDRONE_OPENING_STATE__.stage),'playing');await page.evaluate(invoke(setStartupPhase,'ready'));await page.waitForTimeout(1000);
+ assert.equal(await page.locator('#sandrone-opening').count(),0);checks.push('real-readiness-and-auto-dismiss');
+ await showOpening(evaluate,assets,{preview:true});await page.evaluate(invoke(removeNativeUi));
+ assert.equal(await page.locator('#sandrone-opening,#sandrone-opening-cached,#sandrone-media-parking').count(),0);
+ assert.equal(await page.evaluate(()=>window.savedColor.getAttribute('src')),null);checks.push('restore-releases-owned-media');
+ await page.emulateMedia({reducedMotion:'reduce'});await showOpening(evaluate,assets,{preview:true});
+ assert.equal(await page.evaluate(()=>window.__SANDRONE_MEDIA_CACHE__.color),null);assert.equal(await page.locator('#sandrone-opening .trace-frame').count(),0);await clear();checks.push('reduced-motion');
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await showOpening(evaluate,{...assets,video:'data:video/mp4;base64,eA==',traceVideo:undefined},{preview:true});
+ assert.equal(await page.locator('#sandrone-opening').count(),1);await clear();checks.push('broken-media-static-fallback');
+ await prepareOpening(evaluate,assets);const pending=showOpening(evaluate,assets,{preview:true});await clear();
+ assert.equal((await pending).shown,false);assert.equal(await page.locator('#sandrone-opening,#sandrone-media-parking').count(),0);checks.push('cancel-before-visible');
+ const stalePreparation=await prepareOpening(evaluate,assets);await clear();await prepareOpening(evaluate,assets);
+ assert.deepEqual(await showOpening(evaluate,assets,{preview:true},stalePreparation),{shown:false,reason:'cancelled'});
+ assert.equal(await page.locator('#sandrone-opening').count(),0);checks.push('stale-preparation-cannot-display-new-cache');
+ await showOpening(evaluate,assets,{preview:true});await page.keyboard.press('Escape');await page.waitForTimeout(800);
+ await page.evaluate(()=>{window.savedRAF=window.requestAnimationFrame;window.requestAnimationFrame=()=>0;});
+ const duringShow=showOpening(evaluate,assets,{preview:true});await page.waitForFunction(()=>window.__SANDRONE_OPENING_STATE__?.stage==='preparing');
+ await clear();assert.equal(await page.locator('#sandrone-opening,#sandrone-opening-cached,#sandrone-media-parking').count(),0);
+ assert.equal((await duringShow).shown,false);await page.evaluate(()=>{window.requestAnimationFrame=window.savedRAF;});checks.push('cancel-during-replay-layout');
+ console.log(JSON.stringify({pass:true,scope:'isolated headless Chromium; not Codex startup or subjective smoothness acceptance',browser:browser.version(),checks,measurements}));
+}finally{await browser.close();}

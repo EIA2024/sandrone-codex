@@ -3,8 +3,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {loadPayload,verifySession} from '../vendor/dream-skin/windows/scripts/injector.mjs';
 import {appPages,identity,Session} from './cdp.mjs';
-import {removeNativeUi,showOpening,installNativeUi} from './renderer.mjs';
+import {removeNativeUi,installNativeUi} from './renderer.mjs';
 import {openingAssets} from './assets.mjs';
+import {prepareOpening,showOpening} from './opening-client.mjs';
 import {applyTargets,call,transient,healthyHiddenTheme} from './target-runner.mjs';
 import {watchSignal} from './watch-signal.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -13,14 +14,18 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let resourcesPromise,assetsPromise,openingShown=false;
 const resources=()=>resourcesPromise??=Promise.all([loadPayload(path.join(root,'themes/sandrone')),fs.readFile(path.join(root,'engine/native-ui.css'),'utf8')]).then(([loaded,css])=>({loaded,css}));
 const connect=page=>new Session(page.webSocketDebuggerUrl).open();
-async function opening(session){
+const evaluators=new WeakMap();
+const evaluateFor=session=>{if(!evaluators.has(session))evaluators.set(session,(code,options)=>session.evaluate(code,options));return evaluators.get(session);};
+const assets=()=>assetsPromise??=openingAssets();
+async function prepare(session){return prepareOpening(evaluateFor(session),await assets());}
+async function opening(session,prepared){
  if(openingShown)return;
  // Reserve the single opening before awaiting assets so two targets cannot race.
  openingShown=true;
- try{await session.evaluate(call(showOpening,await (assetsPromise??=openingAssets())));}catch(error){openingShown=false;throw error;}
+ try{await showOpening(evaluateFor(session),await assets(),{},prepared);}catch(error){openingShown=false;throw error;}
 }
 async function apply({start=false,force=false,verify=false,connector=connect}={}){
- return applyTargets({pages:await appPages(browserId),connect:connector,resources,verify:verify?verifySession:null,opening:start?opening:null,force});
+ return applyTargets({pages:await appPages(browserId),connect:connector,resources,verify:verify?verifySession:null,prepareOpening:start?prepare:null,opening:start?opening:null,force});
 }
 async function waitReady(start,timeoutMs=25000){
  const began=Date.now(),deadline=began+timeoutMs;
@@ -61,14 +66,14 @@ async function watch(){
     if(method==='Runtime.bindingCalled'&&params.name==='sandroneReplayOpening'&&params.payload==='replay'&&!replaying){
      replaying=true;
      (async()=>{
-      if(await session.evaluate(`document.visibilityState==='visible'&&document.documentElement.getAttribute('data-dream-skin')==='active'`))await session.evaluate(call(showOpening,await (assetsPromise??=openingAssets()),{replay:true}));
+      if(await session.evaluate(`document.visibilityState==='visible'&&document.documentElement.getAttribute('data-dream-skin')==='active'`))await showOpening(evaluateFor(session),await assets(),{replay:true});
      })().catch(()=>signal.wake()).finally(()=>{replaying=false;});
     }
    });
    await session.send('Runtime.enable');
    await session.send('Runtime.addBinding',{name:'sandroneReplayOpening'});
   }
-  return {evaluate:expression=>session.evaluate(expression),send:(...args)=>session.send(...args),close(){}};
+  return {evaluate:(expression,options)=>session.evaluate(expression,options),send:(...args)=>session.send(...args),close(){}};
  };
  try{
   while(!anchor.closed){

@@ -28,6 +28,7 @@ exports.installControls = function installControls(prefix, state) {
       <div class="divider"></div>
       <button class="item" data-action="replay" role="menuitem"><span class="mark">↻</span>重播开屏</button>
       <button class="item" data-action="opening" role="menuitemcheckbox"><span class="mark"></span>启动时播放开屏</button>
+      <button class="item" data-action="auto-enter" role="menuitemcheckbox"><span class="mark"></span>就绪后自动进入</button>
       <div class="divider"></div>
       <button class="item danger" data-action="uninstall" role="menuitem"><span class="mark">−</span>卸载主题附加包…</button>
       <button class="item" data-action="cancel-uninstall" role="menuitem" hidden><span class="mark">↶</span>取消待执行的卸载</button>
@@ -101,6 +102,9 @@ exports.installControls = function installControls(prefix, state) {
     const opening = shadow.querySelector('[data-action="opening"]');
     opening.setAttribute('aria-checked', String(next.openingOnLaunch));
     opening.querySelector('.mark').textContent = next.openingOnLaunch ? '✓' : '';
+    const autoEnter = shadow.querySelector('[data-action="auto-enter"]');
+    autoEnter.setAttribute('aria-checked', String(next.autoEnterOnReady !== false));
+    autoEnter.querySelector('.mark').textContent = next.autoEnterOnReady !== false ? '✓' : '';
     shadow.querySelector('.status').textContent = next.uninstallStatus === 'scheduled'
       ? '退出所有 Codex 窗口及托盘进程后卸载；当前聊天继续保留。'
       : next.uninstallStatus === 'completed' ? '附加包已移除，下次启动不再加载。'

@@ -43,7 +43,7 @@ class ThemeManager {
   }
 
   dispatch(action, window) {
-    if (!['enable', 'disable', 'replay', 'opening', 'uninstall', 'cancel-uninstall', 'status'].includes(action)) {
+    if (!['enable', 'disable', 'replay', 'opening', 'auto-enter', 'uninstall', 'cancel-uninstall', 'status'].includes(action)) {
       return Promise.resolve(false);
     }
     return this.enqueue(async () => {
@@ -53,8 +53,9 @@ class ThemeManager {
         if (action === 'enable' || action === 'disable') await this.setEnabled(action === 'enable');
         else if (action === 'replay') {
           if (this.preferences.enabled) await this.operations.replay(window);
-        } else if (action === 'opening') {
-          const next = { ...this.preferences, openingOnLaunch: !this.preferences.openingOnLaunch };
+        } else if (action === 'opening' || action === 'auto-enter') {
+          const key = action === 'opening' ? 'openingOnLaunch' : 'autoEnterOnReady';
+          const next = { ...this.preferences, [key]: !(this.preferences[key] !== false) };
           await this.operations.save(next);
           this.preferences = next;
         } else if (action === 'uninstall') {

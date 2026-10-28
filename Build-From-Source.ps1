@@ -24,6 +24,8 @@ if(!(Test-Path -LiteralPath (Join-Path $root 'runtime\LICENSE-node.txt'))){
 }
 & (Join-Path $root 'build.ps1')
 if($LASTEXITCODE -ne 0){throw '编译失败。'}
+& $node (Join-Path $root 'tools\render-startup.mjs') --ensure
+if($LASTEXITCODE -ne 0){throw '开屏视频生成或版本校验失败，已停止构建。'}
 & $node (Join-Path $root 'build-preview.mjs')
 if($LASTEXITCODE -ne 0){throw '预览构建失败。'}
 & $node (Join-Path $root 'tools\package.mjs')
